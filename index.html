@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Content Pack Generator | Pivot Business Consulting</title>
+<meta name="description" content="Generate a complete content strategy — pillar article, 5 cluster posts, social content, and SEO plan — tailored to your business. Free from Pivot Business Consulting.">
+<link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@400;600;700&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --c-accent:#FF6B00;--c-accent-dark:#cc5500;
+  --c-accent-bg:#FFF3EB;--c-accent-border:#FFD4B3;
+  --c-bg:#F5F0EB;--c-surface:#FFFFFF;--c-surface2:#FAF7F4;
+  --c-border:#E5DDD5;--c-text:#1A1208;
+  --c-text-muted:#6B5F57;--c-text-hint:#A8998E;
+  --c-danger:#dc2626;--c-danger-bg:#fef2f2;--c-danger-border:#fecaca;
+  --c-warn:#d97706;--c-warn-bg:#fffbeb;--c-warn-border:#fde68a;
+  --c-info:#0369a1;--c-info-bg:#f0f9ff;--c-info-border:#bae6fd;
+  --c-success:#15803d;--c-success-bg:#f0fdf4;--c-success-border:#bbf7d0;
+  --radius:12px;
+}
+body{font-family:"Nunito",sans-serif;background:var(--c-bg);color:var(--c-text);line-height:1.6;min-height:100vh;}
+header{background:var(--c-bg);padding:2.75rem 0 0;}
+.header-inner{max-width:860px;margin:0 auto;padding:0 1.5rem;}
+.brand-name{font-family:"Josefin Sans",sans-serif;font-size:.62rem;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--c-text-muted);display:block;margin-bottom:1.6rem;}
+.hero-h1{font-family:"Josefin Sans",sans-serif;font-size:clamp(2rem,5vw,3.2rem);font-weight:700;letter-spacing:.04em;text-transform:uppercase;line-height:1.08;color:var(--c-text);margin-bottom:1.6rem;}
+.orange-dash{height:5px;width:66%;background:var(--c-accent);border-radius:0 3px 3px 0;margin-bottom:2rem;}
+.header-bottom{display:grid;grid-template-columns:1fr auto;gap:3rem;align-items:start;padding-bottom:2.5rem;}
+.hero-sub{font-size:.93rem;color:var(--c-text-muted);line-height:1.8;max-width:420px;}
+.hero-stats{display:flex;flex-direction:column;gap:.5rem;align-items:flex-end;padding-top:.2rem;}
+.hero-stat{font-family:"Josefin Sans",sans-serif;font-size:.65rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--c-text-muted);display:flex;align-items:center;gap:8px;white-space:nowrap;}
+.hero-stat::after{content:"";width:5px;height:5px;background:var(--c-accent);border-radius:50%;flex-shrink:0;}
+.progress-wrap{background:var(--c-border);height:3px;}
+.progress-bar{height:100%;background:var(--c-accent);transition:width .4s;}
+.nav-steps{background:#fff;border-bottom:1px solid var(--c-border);padding:.6rem 1rem;overflow-x:auto;}
+.nav-steps-inner{display:flex;gap:4px;max-width:700px;margin:0 auto;}
+.nav-chip{padding:4px 10px;border-radius:20px;font-size:.65rem;white-space:nowrap;color:var(--c-text-hint);background:var(--c-surface2);font-family:"Josefin Sans",sans-serif;letter-spacing:.06em;text-transform:uppercase;transition:all .2s;}
+.nav-chip.active{background:var(--c-accent-bg);color:var(--c-accent);font-weight:600;}
+.nav-chip.done{background:#f0fdf4;color:#15803d;}
+main{max-width:720px;margin:0 auto;padding:1.5rem 1rem 3rem;}
+.card{background:var(--c-surface);border-radius:var(--radius);border:1px solid var(--c-border);padding:1.75rem;margin-bottom:12px;}
+.section-header{border-bottom:1px solid var(--c-border);padding-bottom:1rem;margin-bottom:1.25rem;}
+.section-header .eyebrow{font-family:"Josefin Sans",sans-serif;font-size:.58rem;color:var(--c-accent);text-transform:uppercase;letter-spacing:.16em;margin-bottom:.3rem;font-weight:700;display:block;}
+.section-header h2{font-family:"Josefin Sans",sans-serif;font-size:1.1rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--c-text);}
+.q{margin-bottom:1.25rem;}
+.q label.qlabel{display:block;font-size:.9rem;font-weight:600;color:var(--c-text);margin-bottom:.3rem;}
+.q .hint{font-size:.78rem;color:var(--c-text-muted);margin-bottom:.5rem;line-height:1.5;}
+.pills{display:flex;flex-wrap:wrap;gap:8px;}
+.pill{display:inline-block;padding:7px 18px;border-radius:8px;border:1.5px solid var(--c-border);background:#fff;color:var(--c-text-muted);font-size:.85rem;cursor:pointer;transition:all .15s;font-family:"Nunito",sans-serif;}
+.pill:hover{border-color:var(--c-accent);color:var(--c-accent);}
+.pill.selected{border-color:var(--c-accent);background:var(--c-accent-bg);color:var(--c-accent);font-weight:600;}
+.pill input{display:none;}
+.text-input,.textarea-input{width:100%;padding:.7rem 1rem;border:1.5px solid var(--c-border);border-radius:8px;font-size:.9rem;color:var(--c-text);outline:none;font-family:"Nunito",sans-serif;background:#fff;transition:border-color .15s;}
+.text-input:focus,.textarea-input:focus{border-color:var(--c-accent);box-shadow:0 0 0 3px var(--c-accent-bg);}
+.text-input::placeholder,.textarea-input::placeholder{color:var(--c-text-hint);}
+.textarea-input{resize:vertical;min-height:80px;line-height:1.6;}
+.field-err{color:var(--c-danger);font-size:.75rem;margin-top:.3rem;display:block;}
+.info-box{background:var(--c-info-bg);border:1px solid var(--c-info-border);border-radius:8px;padding:.75rem 1rem;font-size:.82rem;color:var(--c-info);line-height:1.5;margin-bottom:1rem;}
+.success-box{background:var(--c-success-bg);border:1px solid var(--c-success-border);border-radius:8px;padding:.75rem 1rem;font-size:.82rem;color:var(--c-success);line-height:1.5;margin-bottom:1rem;}
+.btn-row{display:flex;justify-content:space-between;margin-top:1.5rem;}
+.btn{padding:.75rem 1.75rem;border-radius:8px;border:none;font-size:.85rem;font-weight:700;cursor:pointer;font-family:"Josefin Sans",sans-serif;letter-spacing:.1em;text-transform:uppercase;transition:all .15s;}
+.btn-back{background:#fff;border:1.5px solid var(--c-border);color:var(--c-text-muted);text-transform:none;letter-spacing:0;}
+.btn-back:hover{border-color:var(--c-accent);color:var(--c-accent);}
+.btn-next{background:var(--c-accent);color:#fff;}
+.btn-next:hover{background:var(--c-accent-dark);transform:translateY(-1px);}
+.btn-next:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+.btn-start{padding:1rem 2.5rem;font-size:.95rem;}
+/* Results */
+.pillar-card{background:var(--c-accent-bg);border:2px solid var(--c-accent-border);border-radius:var(--radius);padding:1.25rem;margin-bottom:1rem;}
+.pillar-card h3{font-family:"Josefin Sans",sans-serif;font-size:1rem;font-weight:700;color:var(--c-accent-dark);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem;}
+.pillar-card p{font-size:.88rem;color:var(--c-text-muted);line-height:1.65;}
+.cluster-card{background:var(--c-surface2);border:1px solid var(--c-border);border-left:4px solid var(--c-accent);border-radius:var(--radius);padding:1rem 1.25rem;margin-bottom:.75rem;}
+.cluster-card h4{font-family:"Josefin Sans",sans-serif;font-size:.85rem;font-weight:700;color:var(--c-text);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.35rem;}
+.cluster-card p{font-size:.82rem;color:var(--c-text-muted);line-height:1.6;}
+.keyword-tag{display:inline-block;padding:2px 10px;border-radius:20px;font-size:.7rem;background:var(--c-accent-bg);color:var(--c-accent);font-weight:600;margin:2px 4px 2px 0;}
+.calendar-row{display:grid;grid-template-columns:80px 1fr;gap:.75rem;padding:.6rem 0;border-bottom:1px solid var(--c-border);font-size:.84rem;}
+.calendar-row:last-child{border-bottom:none;}
+.calendar-week{font-family:"Josefin Sans",sans-serif;font-weight:700;color:var(--c-accent);font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;padding-top:2px;}
+.calendar-content{color:var(--c-text-muted);}
+.calendar-content strong{color:var(--c-text);font-weight:600;}
+.deliverable-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-top:.75rem;}
+.deliverable-item{background:var(--c-surface2);border:1px solid var(--c-border);border-radius:8px;padding:.75rem;text-align:center;}
+.deliverable-item .d-icon{font-size:1.5rem;margin-bottom:.3rem;}
+.deliverable-item .d-label{font-size:.78rem;font-weight:600;color:var(--c-text-muted);}
+.deliverable-item .d-count{font-size:.68rem;color:var(--c-text-hint);}
+.intro-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;text-align:center;margin-top:1.5rem;}
+.intro-tile{background:var(--c-surface2);border-radius:10px;padding:.9rem .5rem;border:1px solid var(--c-border);}
+.intro-tile .tile-icon{font-size:1.4rem;margin-bottom:.3rem;display:block;}
+.intro-tile span{display:block;font-size:.78rem;font-weight:600;color:var(--c-text-muted);}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+@media(max-width:600px){
+  .header-bottom{grid-template-columns:1fr;gap:1.25rem;}
+  .hero-stats{align-items:flex-start;flex-direction:row;flex-wrap:wrap;gap:.5rem .75rem;}
+  .hero-stat::after{display:none;}
+  .orange-dash{width:85%;}
+  .intro-grid{grid-template-columns:1fr;}
+  .deliverable-grid{grid-template-columns:1fr;}
+  .btn-row{gap:.5rem;}
+  .btn{padding:.65rem 1rem;font-size:.8rem;}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <span class="brand-name">Pivot Business Consulting</span>
+    <h1 class="hero-h1">Build your<br>content strategy</h1>
+    <div class="orange-dash"></div>
+    <div class="header-bottom">
+      <p class="hero-sub">Tell us about your business and what you want to be known for. We will generate a complete content architecture — pillar article, five supporting posts, keywords, and a publishing calendar — in under five minutes.</p>
+      <div class="hero-stats">
+        <span class="hero-stat">5 minutes</span>
+        <span class="hero-stat">100% free</span>
+        <span class="hero-stat">Instant strategy</span>
+        <span class="hero-stat">No sign-up</span>
+      </div>
+    </div>
+  </div>
+</header>
+<div class="progress-wrap"><div class="progress-bar" id="pbar" style="width:0%"></div></div>
+<div id="navsteps" style="display:none;" class="nav-steps"><div class="nav-steps-inner" id="navinner"></div></div>
+<main id="main"></main>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// GOOGLE SHEETS — paste your Apps Script web app URL here
+// ─────────────────────────────────────────────────────────────────────────────
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbwfEvpLYoq1xncz6BcXs-wwlUUJhgK9wOYYgzsHa-lB0VJB8SpgDLPPuMu0A5tZ4N0QXQ/exec';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────────────────────────────────
+const S = {
+  step: 0,
+  d: {
+    bname:'', industry:'', email:'', phone:'', website:'',
+    topic:'', topic_desc:'', audience:'', goal:'', tone:'',
+    platforms:'', keywords:'', competitors:''
+  },
+  e: {},
+  results: null,
+  submitting: false,
+  submitted: false
+};
+
+const NAV = ['Business','Topic','Goals','Strategy'];
+const SNAMES = {1:'Your business',2:'Content topic',3:'Goals & channels',4:'Your strategy'};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INDUSTRY → CONTENT TEMPLATES
+// ─────────────────────────────────────────────────────────────────────────────
+const TEMPLATES = {
+  trades: {
+    pillars: [
+      'The Complete Guide to Choosing a {INDUSTRY} in {REGION}',
+      'Everything You Need to Know About {TOPIC} for Your Home',
+      '{TOPIC}: What Every Homeowner in {REGION} Should Know'
+    ],
+    clusters: [
+      ['How Much Does {TOPIC} Cost in {REGION}?', 'Break down pricing, what affects the cost, and how to budget. Readers searching for pricing are close to buying — this is a high-intent keyword.'],
+      ['How to Know When You Need a {INDUSTRY}', 'Warning signs, seasonal timing, and when DIY is not enough. Positions your client as the honest expert who helps people make the right call.'],
+      ['{COUNT} Questions to Ask Before Hiring a {INDUSTRY}', 'Checklist article that builds trust. Each question demonstrates your client\'s expertise and weeds out cowboys.'],
+      ['{TOPIC} Mistakes That Cost {REGION} Homeowners Money', 'Common errors, how to avoid them, and what good work looks like. Educational content that readers save and share.'],
+      ['How Long Does {TOPIC} Take? A Realistic Timeline', 'Set expectations, explain the process step by step, and reduce buyer anxiety. Practical content that converts.']
+    ]
+  },
+  retail: {
+    pillars: [
+      'The Complete Guide to {TOPIC} in {REGION}',
+      'How to Choose the Right {TOPIC} for Your Needs',
+      '{TOPIC}: Your Complete Buyer\'s Guide for {YEAR}'
+    ],
+    clusters: [
+      ['{TOPIC} vs {TOPIC}: Which Is Right for You?', 'Comparison article targeting people weighing up options. Side-by-side breakdown with honest recommendations.'],
+      ['{COUNT} Things to Look for When Buying {TOPIC}', 'Buyer education that positions your client as the trusted adviser. Each point demonstrates product knowledge.'],
+      ['How to Care for Your {TOPIC} — A Practical Guide', 'Post-purchase content that builds loyalty, reduces returns, and creates repeat customers.'],
+      ['Is {TOPIC} Worth the Investment? What the Numbers Say', 'Cost-benefit analysis that helps justify the purchase. Uses data and real examples.'],
+      ['The Most Common {TOPIC} Questions We Get Asked', 'FAQ-style content that captures long-tail search queries and feeds AI search results.']
+    ]
+  },
+  professional: {
+    pillars: [
+      'The Complete Guide to {TOPIC} for Small Businesses in {REGION}',
+      'What Every Business Owner Needs to Know About {TOPIC}',
+      '{TOPIC}: How It Works and Why It Matters for Your Business'
+    ],
+    clusters: [
+      ['How Much Does {TOPIC} Cost for a Small Business?', 'Pricing transparency builds trust. Break down what affects cost and what to budget for.'],
+      ['When Should You Hire a {INDUSTRY} for {TOPIC}?', 'Timing triggers that signal someone needs professional help. Captures high-intent searchers.'],
+      ['{COUNT} {TOPIC} Mistakes Small Businesses Make', 'Educational content that demonstrates expertise. Each mistake comes with a clear fix.'],
+      ['DIY vs Professional {TOPIC}: What Makes Sense?', 'Honest comparison that respects the reader\'s intelligence. Positions your client as the guide, not a hard sell.'],
+      ['How to Prepare Your Business for {TOPIC}', 'Step-by-step guide that reduces friction and makes it easy to take the next step with your client.']
+    ]
+  },
+  hospitality: {
+    pillars: [
+      'The Complete Guide to {TOPIC} in {REGION}',
+      'How to Build a {TOPIC} Strategy That Brings Customers Back',
+      '{TOPIC} for {INDUSTRY}: What Actually Works in {YEAR}'
+    ],
+    clusters: [
+      ['How to Attract More Customers with {TOPIC}', 'Practical tactics backed by examples. Focus on what works for local businesses, not big chains.'],
+      ['{TOPIC} on a Budget: Smart Strategies for Small Operators', 'Cost-effective approaches that deliver results without breaking the bank. Perfect for startups.'],
+      ['What Your Customers Actually Want from Your {TOPIC}', 'Customer insight article that bridges the gap between what owners think matters and what diners or guests value.'],
+      ['{COUNT} {TOPIC} Trends in {REGION} for {YEAR}', 'Timely content that demonstrates the business is current and paying attention to the market.'],
+      ['How to Measure Whether Your {TOPIC} Is Working', 'Metrics and measurement. Turns gut feeling into data. Practical KPIs for small operators.']
+    ]
+  },
+  health: {
+    pillars: [
+      'The Complete Guide to {TOPIC} in {REGION}',
+      'Understanding {TOPIC}: What You Need to Know',
+      '{TOPIC} for {REGION} Families: Your Questions Answered'
+    ],
+    clusters: [
+      ['How to Choose the Right {INDUSTRY} for {TOPIC}', 'Decision-making guide with clear criteria. Helps people feel confident in their choice.'],
+      ['What to Expect During Your First {TOPIC} Appointment', 'Reduce anxiety, set expectations, remove barriers to booking. Conversion-focused content.'],
+      ['{COUNT} Common Myths About {TOPIC} — And the Truth', 'Myth-busting content that demonstrates clinical authority and builds trust through honest education.'],
+      ['How Often Should You Get {TOPIC}? A Practical Guide', 'Frequency and scheduling content. Practical, no-nonsense advice that encourages regular visits.'],
+      ['{TOPIC} Costs in {REGION}: What to Budget For', 'Pricing transparency. Break down what affects cost and help people plan their investment in health.']
+    ]
+  },
+  general: {
+    pillars: [
+      'The Complete Guide to {TOPIC} for Your Business',
+      'Everything You Need to Know About {TOPIC} in {REGION}',
+      '{TOPIC}: A Practical Guide for {REGION} Business Owners'
+    ],
+    clusters: [
+      ['How Much Does {TOPIC} Cost? A Realistic Guide', 'Pricing content captures high-intent searchers. Be transparent and build trust with real numbers.'],
+      ['{COUNT} Common {TOPIC} Mistakes and How to Avoid Them', 'Educational content that demonstrates expertise. Each mistake paired with a practical solution.'],
+      ['How to Get Started with {TOPIC}: A Step-by-Step Guide', 'Beginner-friendly content that removes friction and makes the first step feel easy.'],
+      ['Why {TOPIC} Matters for Small Businesses in {REGION}', 'Authority content that explains the "why" before the "how". Positions your client as a thought leader.'],
+      ['{TOPIC} Questions Answered: What Our Clients Ask Most', 'FAQ-style content optimised for AI search and voice queries. Captures dozens of long-tail keywords.']
+    ]
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+function h(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function setField(f, v) {
+  S.d[f] = v; S.e[f] = null; render();
+}
+function setText(f, v) {
+  S.d[f] = v;
+  if (S.e[f]) { S.e[f] = null; const el = document.getElementById('err_'+f); if (el) el.textContent = ''; }
+}
+
+function pillHtml(f, v, lbl) {
+  const sel = S.d[f] === v;
+  return `<label class="pill${sel?' selected':''}"><input type="radio" name="${f}" value="${v}" onchange="setField('${f}','${v}')">${h(lbl)}</label>`;
+}
+function rq(f, q, opts, hint) {
+  return `<div class="q">
+    <label class="qlabel">${q}</label>
+    ${hint ? `<p class="hint">${hint}</p>` : ''}
+    <div class="pills">${opts.map(o => pillHtml(f, o.v, o.l)).join('')}</div>
+    ${S.e[f] ? `<span class="field-err" id="err_${f}">${h(S.e[f])}</span>` : ''}
+  </div>`;
+}
+function tq(f, lbl, type, ph, req, hint) {
+  return `<div class="q">
+    <label class="qlabel" for="f_${f}">${lbl}${req?' <span style="color:var(--c-danger)">*</span>':''}</label>
+    ${hint ? `<p class="hint">${hint}</p>` : ''}
+    <input class="text-input" id="f_${f}" type="${type}" value="${h(S.d[f])}" placeholder="${ph}" oninput="setText('${f}',this.value)">
+    ${S.e[f] ? `<span class="field-err" id="err_${f}">${h(S.e[f])}</span>` : ''}
+  </div>`;
+}
+function taq(f, lbl, ph, req, hint) {
+  return `<div class="q">
+    <label class="qlabel" for="f_${f}">${lbl}${req?' <span style="color:var(--c-danger)">*</span>':''}</label>
+    ${hint ? `<p class="hint">${hint}</p>` : ''}
+    <textarea class="textarea-input" id="f_${f}" placeholder="${ph}" oninput="setText('${f}',this.value)">${h(S.d[f])}</textarea>
+    ${S.e[f] ? `<span class="field-err" id="err_${f}">${h(S.e[f])}</span>` : ''}
+  </div>`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONTENT GENERATION ENGINE
+// ─────────────────────────────────────────────────────────────────────────────
+function generateStrategy() {
+  const d = S.d;
+  const topic = d.topic.trim();
+  const industry = d.industry || 'general';
+  const region = 'South Canterbury';
+  const year = new Date().getFullYear();
+  const tpl = TEMPLATES[industry] || TEMPLATES.general;
+
+  // Pick pillar
+  const pillarTpl = tpl.pillars[Math.floor(Math.random() * tpl.pillars.length)];
+  const pillarTitle = pillarTpl
+    .replace(/\{TOPIC\}/g, topic)
+    .replace(/\{INDUSTRY\}/g, d.bname || 'Professional')
+    .replace(/\{REGION\}/g, region)
+    .replace(/\{YEAR\}/g, year);
+
+  // Generate clusters
+  const clusters = tpl.clusters.map((c, i) => {
+    const count = [5, 7, 8, 6, 10][i];
+    const title = c[0]
+      .replace(/\{TOPIC\}/g, topic)
+      .replace(/\{INDUSTRY\}/g, d.bname || 'Professional')
+      .replace(/\{REGION\}/g, region)
+      .replace(/\{YEAR\}/g, year)
+      .replace(/\{COUNT\}/g, count);
+    const desc = c[1]
+      .replace(/\{TOPIC\}/g, topic)
+      .replace(/\{INDUSTRY\}/g, d.bname || 'your business')
+      .replace(/\{REGION\}/g, region);
+    return { title, desc, num: i + 1 };
+  });
+
+  // Generate keywords
+  const topicLower = topic.toLowerCase();
+  const primaryKw = topicLower;
+  const secondaryKws = [
+    topicLower + ' ' + region.toLowerCase(),
+    topicLower + ' for small business',
+    topicLower + ' guide',
+    'best ' + topicLower + ' ' + region.toLowerCase()
+  ];
+  const clusterKws = clusters.map(c => {
+    const words = c.title.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(' ').filter(w => w.length > 3);
+    return words.slice(0, 4).join(' ');
+  });
+
+  return {
+    pillar: { title: pillarTitle },
+    clusters,
+    keywords: { primary: primaryKw, secondary: secondaryKws, cluster: clusterKws },
+    calendar: generateCalendar(pillarTitle, clusters),
+    deliverables: {
+      articles: 6,
+      htmlPages: 6,
+      linkedinPosts: 6,
+      carousels: 6,
+      emailDrafts: 6,
+      seoSheet: 1
+    }
+  };
+}
+
+function generateCalendar(pillar, clusters) {
+  return [
+    { week: 'Week 1', content: `Publish pillar article. LinkedIn post + email newsletter blast.`, title: pillar },
+    { week: 'Week 2', content: `Publish cluster 1. LinkedIn carousel + Instagram post.`, title: clusters[0].title },
+    { week: 'Week 3', content: `Publish cluster 2. LinkedIn post + Facebook share.`, title: clusters[1].title },
+    { week: 'Week 4', content: `Publish cluster 3. LinkedIn carousel + email newsletter.`, title: clusters[2].title },
+    { week: 'Week 5', content: `Publish cluster 4. LinkedIn post + Instagram carousel.`, title: clusters[3].title },
+    { week: 'Week 6', content: `Publish cluster 5. LinkedIn carousel + roundup email.`, title: clusters[4].title },
+  ];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GOOGLE SHEETS SUBMISSION
+// ─────────────────────────────────────────────────────────────────────────────
+async function submitToSheet() {
+  if (!SHEET_URL || S.submitted) return;
+  S.submitting = true; render();
+  const d = S.d, r = S.results;
+  const row = {
+    timestamp:       new Date().toISOString(),
+    business_name:   d.bname,
+    industry:        d.industry,
+    email:           d.email,
+    phone:           d.phone,
+    website:         d.website,
+    topic:           d.topic,
+    topic_desc:      d.topic_desc,
+    audience:        d.audience,
+    goal:            d.goal,
+    tone:            d.tone,
+    platforms:       d.platforms,
+    keywords:        d.keywords,
+    competitors:     d.competitors,
+    pillar_title:    r ? r.pillar.title : '',
+    cluster_1:       r ? r.clusters[0].title : '',
+    cluster_2:       r ? r.clusters[1].title : '',
+    cluster_3:       r ? r.clusters[2].title : '',
+    cluster_4:       r ? r.clusters[3].title : '',
+    cluster_5:       r ? r.clusters[4].title : ''
+  };
+  try {
+    const params = new URLSearchParams();
+    Object.entries(row).forEach(([k, v]) => params.append(k, v == null ? '' : v));
+    await fetch(SHEET_URL, { method: 'POST', body: params, mode: 'no-cors' });
+    S.submitted = true;
+  } catch(err) {
+    console.warn('Sheet save failed:', err);
+    // Fallback: image pixel method
+    try {
+      const params2 = new URLSearchParams();
+      Object.entries(row).forEach(([k, v]) => params2.append(k, v == null ? '' : v));
+      await new Promise(resolve => {
+        const img = new Image();
+        img.onload = img.onerror = resolve;
+        img.src = SHEET_URL + '?' + params2.toString();
+        setTimeout(resolve, 5000);
+      });
+      S.submitted = true;
+    } catch(e2) { console.warn('Fallback also failed:', e2); }
+  }
+  S.submitting = false; render();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// VALIDATION
+// ─────────────────────────────────────────────────────────────────────────────
+function validate1() {
+  const e = {}, d = S.d;
+  if (!d.bname.trim()) e.bname = 'Business name is required';
+  if (!d.email.trim()) e.email = 'Email is required';
+  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email)) e.email = 'Please enter a valid email';
+  if (!d.industry) e.industry = 'Please select your industry';
+  return e;
+}
+function validate2() {
+  const e = {}, d = S.d;
+  if (!d.topic.trim()) e.topic = 'Please enter your main topic';
+  if (!d.audience) e.audience = 'Please select your target audience';
+  return e;
+}
+function validate3() {
+  const e = {}, d = S.d;
+  if (!d.goal) e.goal = 'Please select your primary goal';
+  if (!d.tone) e.tone = 'Please select your preferred tone';
+  return e;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NAVIGATION
+// ─────────────────────────────────────────────────────────────────────────────
+function next() {
+  if (S.step === 1) {
+    const e = validate1();
+    if (Object.keys(e).length) { S.e = e; render(); return; }
+  }
+  if (S.step === 2) {
+    const e = validate2();
+    if (Object.keys(e).length) { S.e = e; render(); return; }
+  }
+  if (S.step === 3) {
+    const e = validate3();
+    if (Object.keys(e).length) { S.e = e; render(); return; }
+    // Generate strategy
+    S.results = generateStrategy();
+    S.step = 4;
+    render();
+    // Auto-submit to sheet
+    submitToSheet();
+    return;
+  }
+  if (S.step < 3) { S.step++; render(); }
+}
+
+function restart() {
+  S.step = 0; S.results = null; S.e = {}; S.submitted = false; S.submitting = false;
+  Object.keys(S.d).forEach(k => S.d[k] = '');
+  render();
+}
+
+function updateNav() {
+  const ns = document.getElementById('navsteps');
+  const ni = document.getElementById('navinner');
+  if (S.step === 0 || S.step === 4) { ns.style.display = 'none'; return; }
+  ns.style.display = 'block';
+  ni.innerHTML = NAV.slice(0, 3).map((l, i) => {
+    const n = i + 1, cur = S.step === n, done = S.step > n;
+    return `<div class="nav-chip${cur?' active':done?' done':''}">${done?'&#10003; ':''}${l}</div>`;
+  }).join('');
+  document.getElementById('pbar').style.width = Math.round((S.step / 3) * 100) + '%';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STEP RENDERERS
+// ─────────────────────────────────────────────────────────────────────────────
+function renderIntro() {
+  return `<div style="text-align:center;padding:1.5rem 0;">
+    <div class="intro-grid">
+      <div class="intro-tile"><span class="tile-icon">📋</span><span>Tell us about<br>your business</span></div>
+      <div class="intro-tile"><span class="tile-icon">🏗️</span><span>We generate your<br>content strategy</span></div>
+      <div class="intro-tile"><span class="tile-icon">📦</span><span>Get a complete<br>content pack</span></div>
+    </div>
+    <div style="margin-top:2rem;">
+      <button class="btn btn-next btn-start" onclick="S.step=1;render();">Build my content strategy &rarr;</button>
+      <p style="margin-top:.75rem;font-size:.78rem;color:var(--c-text-hint);">No sign-up required &mdash; instant results</p>
+    </div>
+  </div>`;
+}
+
+function step1Html() {
+  const industries = [
+    {v:'trades',l:'Trades & construction'},{v:'retail',l:'Retail & e-commerce'},
+    {v:'professional',l:'Professional services'},{v:'hospitality',l:'Hospitality & food'},
+    {v:'health',l:'Health & wellness'},{v:'general',l:'Other'}
+  ];
+  return `<div class="card">
+    <div class="section-header"><span class="eyebrow">Step 1 of 3</span><h2>Your Business</h2></div>
+    ${tq('bname','Business name','text','e.g. Timaru Plumbing Ltd',true)}
+    ${tq('email','Email address','email','you@yourbusiness.co.nz',true,'We will send your full content strategy here')}
+    ${tq('phone','Phone number','tel','e.g. 03 688 0000',false)}
+    ${tq('website','Website URL','url','www.yourbusiness.co.nz',false,'Leave blank if you do not have one yet')}
+    ${rq('industry','What industry are you in?', industries)}
+  </div>`;
+}
+
+function step2Html() {
+  const audiences = [
+    {v:'local_consumers',l:'Local consumers'},{v:'homeowners',l:'Homeowners'},
+    {v:'business_owners',l:'Business owners'},{v:'professionals',l:'Professionals'},
+    {v:'families',l:'Families'}
+  ];
+  return `<div class="card">
+    <div class="section-header"><span class="eyebrow">Step 2 of 3</span><h2>Content Topic</h2></div>
+    ${tq('topic','What is the main topic you want to be known for?','text','e.g. bathroom renovations, bookkeeping, craft beer',true,'This becomes the subject of your pillar article — your main, comprehensive piece')}
+    ${taq('topic_desc','Tell us a bit more about what you want to cover','Describe what you would like the content to focus on — specific services, common questions your customers ask, problems you solve...', false, 'The more detail you give, the better your strategy will be')}
+    ${rq('audience','Who is your target customer?', audiences, 'Who are you trying to reach with this content?')}
+    ${tq('keywords','Any specific keywords you want to target?','text','e.g. plumber Timaru, emergency plumbing South Canterbury',false,'Optional — we will suggest keywords based on your topic if you leave this blank')}
+    ${tq('competitors','Who are your main competitors?','text','e.g. ABC Plumbing, XYZ Services',false,'Optional — helps us differentiate your content')}
+  </div>`;
+}
+
+function step3Html() {
+  const goals = [
+    {v:'leads',l:'Generate leads'},{v:'authority',l:'Build authority'},
+    {v:'educate',l:'Educate customers'},{v:'sales',l:'Drive sales'}
+  ];
+  const tones = [
+    {v:'professional',l:'Professional & authoritative'},
+    {v:'conversational',l:'Conversational & approachable'},
+    {v:'technical',l:'Technical & detailed'},
+    {v:'warm',l:'Warm & supportive'}
+  ];
+  const platforms = [
+    {v:'linkedin',l:'LinkedIn'},{v:'instagram',l:'Instagram'},
+    {v:'facebook',l:'Facebook'},{v:'email',l:'Email newsletter'}
+  ];
+  return `<div class="card">
+    <div class="section-header"><span class="eyebrow">Step 3 of 3</span><h2>Goals & Channels</h2></div>
+    ${rq('goal','What is the primary goal of this content?', goals)}
+    ${rq('tone','What tone best fits your brand?', tones, 'How should this content sound to your customers?')}
+    ${rq('platforms','Which channels do you use most?', platforms, 'We will tailor social content for your main channel')}
+  </div>`;
+}
+
+function resultsHtml() {
+  const r = S.results;
+  if (!r) return '<p>Something went wrong. Please try again.</p>';
+  const biz = h(S.d.bname || 'Your Business');
+
+  let html = '';
+
+  // Submitted status
+  if (S.submitted) {
+    html += `<div class="success-box">&#10003; Your strategy has been saved. We will be in touch at <strong>${h(S.d.email)}</strong> with your complete content pack.</div>`;
+  } else if (S.submitting) {
+    html += `<div class="info-box"><span class="spinner"></span> Saving your strategy...</div>`;
+  }
+
+  // Header
+  html += `<div class="card" style="text-align:center;">
+    <p style="font-size:.72rem;color:var(--c-text-hint);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.3rem;">Content strategy for</p>
+    <h2 style="font-family:'Josefin Sans',sans-serif;font-size:1.3rem;font-weight:700;margin-bottom:.5rem;">${biz}</h2>
+    <p style="font-size:.88rem;color:var(--c-text-muted);">Topic: <strong>${h(S.d.topic)}</strong></p>
+  </div>`;
+
+  // Pillar article
+  html += `<div class="card">
+    <div class="section-header"><span class="eyebrow">Pillar Article</span><h2>Your Main Article</h2></div>
+    <div class="pillar-card">
+      <h3>${h(r.pillar.title)}</h3>
+      <p>This is your cornerstone content piece — a comprehensive, 2,500 to 4,000 word guide that covers the full topic. Every cluster article links back to this. It targets your primary keyword and establishes your authority.</p>
+    </div>
+    <div style="margin-top:.75rem;">
+      <span class="keyword-tag">${h(r.keywords.primary)}</span>
+      ${r.keywords.secondary.map(k => `<span class="keyword-tag">${h(k)}</span>`).join('')}
+    </div>
+  </div>`;
+
+  // Cluster articles
+  html += `<div class="card">
+    <div class="section-header"><span class="eyebrow">5 Supporting Articles</span><h2>Topic Clusters</h2></div>
+    <p style="font-size:.84rem;color:var(--c-text-muted);margin-bottom:1rem;">Each cluster article dives deep into a subtopic, targeting a specific long-tail keyword. Together with the pillar, they form a content hub that search engines and AI systems love.</p>`;
+  r.clusters.forEach((c, i) => {
+    html += `<div class="cluster-card">
+      <h4>Cluster ${c.num}: ${h(c.title)}</h4>
+      <p>${h(c.desc)}</p>
+      <div style="margin-top:.4rem;"><span class="keyword-tag">${h(r.keywords.cluster[i])}</span></div>
+    </div>`;
+  });
+  html += `</div>`;
+
+  // Content calendar
+  html += `<div class="card">
+    <div class="section-header"><span class="eyebrow">Publishing Schedule</span><h2>6-Week Content Calendar</h2></div>`;
+  r.calendar.forEach(w => {
+    html += `<div class="calendar-row">
+      <div class="calendar-week">${w.week}</div>
+      <div class="calendar-content"><strong>${h(w.title)}</strong><br>${h(w.content)}</div>
+    </div>`;
+  });
+  html += `</div>`;
+
+  // What you get
+  html += `<div class="card">
+    <div class="section-header"><span class="eyebrow">Your Content Pack Includes</span><h2>What You Get</h2></div>
+    <div class="deliverable-grid">
+      <div class="deliverable-item"><div class="d-icon">📄</div><div class="d-label">Word Documents</div><div class="d-count">6 articles</div></div>
+      <div class="deliverable-item"><div class="d-icon">🌐</div><div class="d-label">HTML Pages</div><div class="d-count">6 landing pages</div></div>
+      <div class="deliverable-item"><div class="d-icon">📱</div><div class="d-label">Social Content</div><div class="d-count">LinkedIn, Instagram, Facebook</div></div>
+      <div class="deliverable-item"><div class="d-icon">📊</div><div class="d-label">SEO Cheat Sheet</div><div class="d-count">Keywords, meta, schema</div></div>
+      <div class="deliverable-item"><div class="d-icon">📅</div><div class="d-label">Content Calendar</div><div class="d-count">6-week schedule</div></div>
+      <div class="deliverable-item"><div class="d-icon">📧</div><div class="d-label">Email Drafts</div><div class="d-count">6 newsletter emails</div></div>
+    </div>
+  </div>`;
+
+  // CTA
+  html += `<div class="card" style="text-align:center;border:2px solid var(--c-accent-border);background:var(--c-accent-bg);">
+    <h3 style="font-family:'Josefin Sans',sans-serif;font-size:1rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--c-accent-dark);margin-bottom:.5rem;">Ready to bring this strategy to life?</h3>
+    <p style="font-size:.88rem;color:var(--c-text-muted);margin-bottom:1rem;max-width:400px;margin-left:auto;margin-right:auto;">We will take this strategy and produce every deliverable — written, formatted, and ready to publish. You focus on running your business.</p>
+    <a href="mailto:lyndon@pivotbusiness.co.nz?subject=Content%20Pack%20Request%20-%20${encodeURIComponent(S.d.bname)}&body=Hi%20Lyndon%2C%0A%0AI%20just%20completed%20the%20content%20strategy%20generator%20for%20${encodeURIComponent(S.d.bname)}%20and%20I%E2%80%99d%20like%20to%20discuss%20getting%20the%20full%20content%20pack%20produced.%0A%0ATopic%3A%20${encodeURIComponent(S.d.topic)}%0A%0AThanks" class="btn btn-next" style="display:inline-block;text-decoration:none;padding:.85rem 2rem;">Get in touch &rarr;</a>
+    <p style="margin-top:.75rem;font-size:.75rem;color:var(--c-text-hint);">or call us to discuss your content pack</p>
+  </div>`;
+
+  // Restart
+  html += `<div style="text-align:center;margin-top:1rem;">
+    <button class="btn btn-back" onclick="restart()">&#8635; Start over</button>
+  </div>`;
+
+  return html;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────────────────────────────────────────────
+const STEPS = [renderIntro, step1Html, step2Html, step3Html, resultsHtml];
+
+function render() {
+  updateNav();
+  const content = (STEPS[S.step] || renderIntro)();
+  const btns = S.step > 0 && S.step < 4
+    ? `<div class="btn-row">
+        <button class="btn btn-back" onclick="S.step=Math.max(0,S.step-1);render();">&larr; Back</button>
+        <button class="btn btn-next" onclick="next();">${S.step===3?'Generate my strategy &rarr;':'Next &rarr;'}</button>
+       </div>`
+    : '';
+  document.getElementById('main').innerHTML = content + btns;
+  // Reset progress bar on results
+  if (S.step === 4) document.getElementById('pbar').style.width = '100%';
+}
+
+render();
+</script>
+<!--
+================================================================================
+GOOGLE SHEETS SETUP — SAME PROCESS AS YOUR VISIBILITY CHECK
+================================================================================
+
+STEP 1: Create a Google Sheet
+  - Go to sheets.google.com and create a new spreadsheet
+  - Name it "PBC Content Generator Submissions"
+  - Add these column headers in Row 1:
+
+  timestamp | business_name | industry | email | phone | website | topic | topic_desc | audience | goal | tone | platforms | keywords | competitors | pillar_title | cluster_1 | cluster_2 | cluster_3 | cluster_4 | cluster_5
+
+STEP 2: Create the Apps Script
+  - In your Google Sheet, go to Extensions > Apps Script
+  - Delete any existing code and paste this:
+
+function doPost(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var row = headers.map(function(h) { return e.parameter[h] || ''; });
+  sheet.appendRow(row);
+  return ContentService.createTextOutput('OK');
+}
+
+function doGet(e) {
+  return doPost(e);
+}
+
+STEP 3: Deploy
+  - Click Deploy > New deployment
+  - Type: Web app
+  - Execute as: Me
+  - Who has access: Anyone
+  - Click Deploy and copy the URL
+  - Paste the URL into the SHEET_URL constant at the top of this file
+
+STEP 4: Host on GitHub Pages
+  - Create a new GitHub repository (e.g. "pbc-content-generator")
+  - Upload this HTML file as index.html
+  - Go to Settings > Pages > Source: main branch
+  - Your tool will be live at: https://yourusername.github.io/pbc-content-generator/
+
+================================================================================
+-->
+</body>
+</html>
