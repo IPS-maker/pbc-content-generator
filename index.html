@@ -248,14 +248,38 @@ const SB7_ROLES = [
 // When avatar data is empty, hooks use topic/audience defaults but stay formula-driven.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Helper: extract the first sentence or short phrase from avatar text
+// Helper: extract a clean, usable phrase from avatar text.
+// Prefers the first complete sentence. Falls back to first N words with clean cutoff.
 function avatarSnippet(text, maxWords) {
   if (!text || !text.trim()) return '';
-  var words = text.trim().split(/\s+/);
-  var snippet = words.slice(0, maxWords || 12).join(' ');
-  // Clean up trailing punctuation fragments
-  snippet = snippet.replace(/[,;:\s]+$/, '');
-  if (words.length > (maxWords || 12)) snippet += '...';
+  var trimmed = text.trim();
+
+  // Try to grab the first complete sentence (ends with . ! or ?)
+  var sentenceMatch = trimmed.match(/^([^.!?]+[.!?])/);
+  if (sentenceMatch) {
+    var sentence = sentenceMatch[1].trim();
+    var sWords = sentence.split(/\s+/);
+    // Use it if it is not too long
+    if (sWords.length <= (maxWords || 12) + 4) {
+      // Remove trailing period for smoother insertion into hooks
+      return sentence.replace(/[.!?]+$/, '').trim();
+    }
+  }
+
+  // Fall back to word limit, but cut at a natural break
+  var words = trimmed.split(/\s+/);
+  var limit = maxWords || 12;
+  if (words.length <= limit) {
+    return trimmed.replace(/[.!?,;:\s]+$/, '').trim();
+  }
+  var snippet = words.slice(0, limit).join(' ');
+  // Cut back to the last comma, semicolon, or natural phrase boundary
+  var lastBreak = Math.max(snippet.lastIndexOf(','), snippet.lastIndexOf(';'), snippet.lastIndexOf(' and '), snippet.lastIndexOf(' but '), snippet.lastIndexOf(' or '));
+  if (lastBreak > snippet.length * 0.4) {
+    snippet = snippet.substring(0, lastBreak);
+  }
+  // Clean trailing punctuation and fragments
+  snippet = snippet.replace(/[,;:\s]+$/, '').trim();
   return snippet;
 }
 
@@ -684,13 +708,107 @@ function dismissKwDropdown() {
 // ─────────────────────────────────────────────────────────────────────────────
 // CONTENT GENERATION ENGINE — StoryBrand SB7
 // ─────────────────────────────────────────────────────────────────────────────
+// ─── Topic cleaning helper ───
+// Turns user-entered topics into clean noun phrases for templates and hooks.
+// Users type all kinds of things: "the need to sort out your AI searchability in 2026",
+// "helping business be more visible in South Canterbury", "bookkeeping".
+// Templates expect short noun phrases like "AI Searchability" or "Business Visibility".
+function cleanTopicForTemplates(rawTopic, region) {
+  var cleaned = rawTopic.trim();
+
+  // 1. Strip region references to prevent doubling ("X in South Canterbury ... in South Canterbury")
+  var regionEscaped = region.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  cleaned = cleaned.replace(new RegExp('\\s+(in|for|around|across|near)\\s+' + regionEscaped + '\\s*', 'gi'), ' ').trim();
+  cleaned = cleaned.replace(new RegExp('^(in|for)\\s+' + regionEscaped + '\\s*', 'i'), '').trim();
+
+  // 2. Strip trailing year references ("... in 2026", "... 2026")
+  cleaned = cleaned.replace(/\s+(in\s+)?\d{4}\s*$/i, '').trim();
+
+  // 3. Strip filler phrases that make titles awkward
+  //    "the need to sort out" → "sorting out" → better: extract the core noun
+  //    "how to improve" → "improving"
+  //    "the cost of being invisible, not getting new customers" → "business visibility"
+  var fillerPatterns = [
+    /^the\s+need\s+to\s+(sort\s+out|fix|improve|get|deal\s+with|handle|manage|work\s+on|address|tackle)\s+/i,
+    /^(the\s+importance\s+of|the\s+value\s+of|the\s+cost\s+of|the\s+challenge\s+of|the\s+problem\s+with|the\s+issue\s+of)\s+/i,
+    /^(how\s+to\s+(sort\s+out|fix|improve|get|deal\s+with|handle|manage|work\s+on|address|tackle|start|set\s+up))\s+/i,
+    /^(ways\s+to\s+(improve|fix|sort\s+out|get|handle|manage|boost|increase))\s+/i,
+    /^(tips\s+for|guide\s+to|advice\s+on|help\s+with)\s+/i
+  ];
+  fillerPatterns.forEach(function(p) { cleaned = cleaned.replace(p, '').trim(); });
+
+  // 4. Strip leading articles that create double-article problems ("The Guide to the marketing")
+  cleaned = cleaned.replace(/^(the|a|an)\s+/i, '').trim();
+
+  // 5. Strip trailing fragments after commas (often a restated version of the same idea)
+  //    "being invisible, not getting new customers" → "being invisible"
+  if (cleaned.indexOf(',') > 5) {
+    cleaned = cleaned.substring(0, cleaned.indexOf(',')).trim();
+  }
+
+  // 6. Convert gerund/verb phrases to noun phrases where possible
+  //    "helping business be more visible" → "business visibility"
+  //    "getting more customers" → "customer acquisition"
+  //    "being invisible" → "business visibility"
+  var gerundMap = [
+    { pattern: /^helping\s+(businesses?|your\s+business)\s+(be\s+more\s+|become\s+more\s+)?visible/i, replacement: 'Business Visibility' },
+    { pattern: /^(being|becoming|staying)\s+invisible/i, replacement: 'Business Visibility' },
+    { pattern: /^(being|becoming|staying)\s+visible/i, replacement: 'Business Visibility' },
+    { pattern: /^getting\s+more\s+(customers?|clients?|leads?|sales?|enquiries)/i, replacement: 'Customer Acquisition' },
+    { pattern: /^(finding|attracting|winning)\s+(new\s+)?(customers?|clients?)/i, replacement: 'Customer Acquisition' },
+    { pattern: /^(growing|scaling|building)\s+(your\s+|a\s+)?business/i, replacement: 'Business Growth' },
+    { pattern: /^(improving|boosting|increasing)\s+(your\s+)?(online\s+)?(visibility|presence|profile)/i, replacement: 'Online Visibility' },
+    { pattern: /^(improving|boosting|fixing)\s+(your\s+)?SEO/i, replacement: 'SEO' },
+    { pattern: /^(improving|boosting|fixing)\s+(your\s+)?(website|site)/i, replacement: 'Website Performance' },
+    { pattern: /^(managing|doing|handling)\s+(your\s+)?(bookkeeping|books|accounts)/i, replacement: 'Bookkeeping' },
+    { pattern: /^(managing|running|handling)\s+(your\s+)?(social\s+media|socials)/i, replacement: 'Social Media Management' },
+    { pattern: /^(setting\s+up|starting|launching)\s+(a\s+|your\s+)?/i, replacement: '' }
+  ];
+  var mapped = false;
+  gerundMap.forEach(function(m) {
+    if (!mapped && m.pattern.test(cleaned)) {
+      if (m.replacement) {
+        cleaned = cleaned.replace(m.pattern, m.replacement).trim();
+      } else {
+        cleaned = cleaned.replace(m.pattern, '').trim();
+      }
+      mapped = true;
+    }
+  });
+
+  // 7. If still starts with a gerund but no mapping found, strip the gerund to get the noun
+  if (!mapped && /^(helping|making|getting|building|growing|running|starting|creating|improving|managing|finding|choosing|using)\s+/i.test(cleaned)) {
+    cleaned = cleaned.replace(/^(helping|making|getting|building|growing|running|starting|creating|improving|managing|finding|choosing|using)\s+/i, '').trim();
+    // Also strip possessive "your" or article after the gerund
+    cleaned = cleaned.replace(/^(your|a|an|the)\s+/i, '').trim();
+  }
+
+  // 8. Title case the result for use in headings
+  var titleCased = cleaned.replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+  // Lowercase minor words (but not the first word)
+  var minorWords = /\b(a|an|the|and|but|or|for|nor|in|on|at|to|by|of|up|as|is|it|be)\b/gi;
+  titleCased = titleCased.replace(minorWords, function(m) { return m.toLowerCase(); });
+  // Always capitalise first word
+  titleCased = titleCased.charAt(0).toUpperCase() + titleCased.slice(1);
+
+  return {
+    forTitle: titleCased,                // For title templates: "AI Searchability", "Business Visibility"
+    lower: cleaned.toLowerCase(),        // For hooks: "ai searchability", "business visibility"
+    raw: rawTopic.trim()                 // Original user input preserved for keywords
+  };
+}
+
 function generateStrategy() {
   var d = S.d;
-  var topic = d.topic.trim();
+  var rawTopic = d.topic.trim();
   var industry = d.industry || 'general';
   var region = 'South Canterbury';
   var year = new Date().getFullYear();
   var tpl = TEMPLATES[industry] || TEMPLATES.general;
+
+  // Clean the topic: strip region duplication, detect verb phrases
+  var topicInfo = cleanTopicForTemplates(rawTopic, region);
+  var topic = topicInfo.forTitle;  // For templates (region-stripped, capitalised if needed)
 
   // Audience label for hooks
   var audienceLabels = {
@@ -733,7 +851,7 @@ function generateStrategy() {
 
     // Generate hook using the evidence-based formula for this SB7 role
     var generator = HOOK_GENERATORS[c.sb7] || HOOK_GENERATORS.problem;
-    var hookOptions = generator(topic.toLowerCase(), audienceLabel, region, avatar);
+    var hookOptions = generator(topicInfo.lower, audienceLabel, region, avatar);
     var hook = hookOptions[Math.floor(Math.random() * hookOptions.length)];
 
     return {
@@ -747,8 +865,8 @@ function generateStrategy() {
   });
 
   // Build keywords — combine selected live keywords with smart defaults
-  var topicLower = topic.toLowerCase();
-  var primaryKw = topicLower;
+  var topicLower = topicInfo.lower;
+  var primaryKw = rawTopic.toLowerCase();
   var secondary = [];
 
   // Add user-selected live keywords first
@@ -1047,7 +1165,10 @@ function step3Html() {
   ];
   var platforms = [
     {v:'linkedin',l:'LinkedIn'},{v:'instagram',l:'Instagram'},
-    {v:'facebook',l:'Facebook'},{v:'email',l:'Email newsletter'}
+    {v:'facebook',l:'Facebook'},{v:'youtube',l:'YouTube'},
+    {v:'tiktok',l:'TikTok'},{v:'x',l:'X (Twitter)'},
+    {v:'reddit',l:'Reddit'},{v:'quora',l:'Quora'},
+    {v:'email',l:'Email newsletter'}
   ];
   return '<div class="card">' +
     '<div class="section-header"><span class="eyebrow">Step 3 of 3</span><h2>Goals & Channels</h2></div>' +
