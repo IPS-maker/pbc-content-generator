@@ -541,6 +541,27 @@ function rq(f, q, opts, hint) {
     (S.e[f] ? '<span class="field-err" id="err_' + f + '">' + h(S.e[f]) + '</span>' : '') +
     '</div>';
 }
+// Multi-select pills (checkboxes) — stores comma-separated values in S.d[f]
+function toggleMulti(f, v) {
+  var current = (S.d[f] || '').split(',').filter(function(s) { return s.trim(); });
+  var idx = current.indexOf(v);
+  if (idx > -1) { current.splice(idx, 1); } else { current.push(v); }
+  S.d[f] = current.join(',');
+  S.e[f] = null;
+  render();
+}
+function multiPillHtml(f, v, lbl) {
+  var current = (S.d[f] || '').split(',');
+  var sel = current.indexOf(v) > -1;
+  return '<label class="pill' + (sel ? ' selected' : '') + '"><input type="checkbox" name="' + f + '" value="' + v + '" ' + (sel ? 'checked' : '') + ' onchange="toggleMulti(\'' + f + '\',\'' + v + '\')">' + h(lbl) + '</label>';
+}
+function mqr(f, q, opts, hint) {
+  return '<div class="q"><label class="qlabel">' + q + '</label>' +
+    (hint ? '<p class="hint">' + hint + '</p>' : '') +
+    '<div class="pills">' + opts.map(function(o){ return multiPillHtml(f, o.v, o.l); }).join('') + '</div>' +
+    (S.e[f] ? '<span class="field-err" id="err_' + f + '">' + h(S.e[f]) + '</span>' : '') +
+    '</div>';
+}
 function tq(f, lbl, type, ph, req, hint) {
   return '<div class="q"><label class="qlabel" for="f_' + f + '">' + lbl + (req ? ' <span style="color:var(--c-danger)">*</span>' : '') + '</label>' +
     (hint ? '<p class="hint">' + hint + '</p>' : '') +
@@ -737,8 +758,8 @@ function cleanTopicForTemplates(rawTopic, region) {
   ];
   fillerPatterns.forEach(function(p) { cleaned = cleaned.replace(p, '').trim(); });
 
-  // 4. Strip leading articles that create double-article problems ("The Guide to the marketing")
-  cleaned = cleaned.replace(/^(the|a|an)\s+/i, '').trim();
+  // 4. Strip leading articles and possessive pronouns ("The Guide to the marketing", "your SEO")
+  cleaned = cleaned.replace(/^(the|a|an|your|my|our|their)\s+/i, '').trim();
 
   // 5. Strip trailing fragments after commas (often a restated version of the same idea)
   //    "being invisible, not getting new customers" → "being invisible"
@@ -751,7 +772,7 @@ function cleanTopicForTemplates(rawTopic, region) {
   //    "getting more customers" → "customer acquisition"
   //    "being invisible" → "business visibility"
   var gerundMap = [
-    { pattern: /^helping\s+(businesses?|your\s+business)\s+(be\s+more\s+|become\s+more\s+)?visible/i, replacement: 'Business Visibility' },
+    { pattern: /^helping\s+(your\s+)?business(es)?\s+(be\s+more\s+|become\s+more\s+|stay\s+|get\s+more\s+)?visible/i, replacement: 'Business Visibility' },
     { pattern: /^(being|becoming|staying)\s+invisible/i, replacement: 'Business Visibility' },
     { pattern: /^(being|becoming|staying)\s+visible/i, replacement: 'Business Visibility' },
     { pattern: /^getting\s+more\s+(customers?|clients?|leads?|sales?|enquiries)/i, replacement: 'Customer Acquisition' },
@@ -779,8 +800,10 @@ function cleanTopicForTemplates(rawTopic, region) {
   // 7. If still starts with a gerund but no mapping found, strip the gerund to get the noun
   if (!mapped && /^(helping|making|getting|building|growing|running|starting|creating|improving|managing|finding|choosing|using)\s+/i.test(cleaned)) {
     cleaned = cleaned.replace(/^(helping|making|getting|building|growing|running|starting|creating|improving|managing|finding|choosing|using)\s+/i, '').trim();
-    // Also strip possessive "your" or article after the gerund
-    cleaned = cleaned.replace(/^(your|a|an|the)\s+/i, '').trim();
+    // Strip possessive/articles after the gerund
+    cleaned = cleaned.replace(/^(your|a|an|the|my|our)\s+/i, '').trim();
+    // Strip leftover verb fragments like "be more", "become more", "get more", "stay"
+    cleaned = cleaned.replace(/^(be\s+more\s+|become\s+more\s+|get\s+more\s+|stay\s+)/i, '').trim();
   }
 
   // 8. Title case the result for use in headings
@@ -961,21 +984,35 @@ async function submitToSheet() {
     cluster_4:       r ? r.clusters[3].title : '',
     cluster_5:       r ? r.clusters[4].title : ''
   };
-  // Use GET via image pixel — most reliable method for cross-origin Apps Script
-  // POST with mode:'no-cors' loses the body during Google's 302 redirect
+  // POST with JSON body via no-cors + text/plain content type.
+  // This avoids URL length limits (GET image pixel broke with long avatar text)
+  // and survives Google's 302 redirect because text/plain is a "simple" request.
   try {
-    var params = new URLSearchParams();
-    Object.entries(row).forEach(function(entry) { params.append(entry[0], entry[1] == null ? '' : entry[1]); });
-    await new Promise(function(resolve, reject) {
-      var img = new Image();
-      img.onload = function() { resolve(); };
-      img.onerror = function() { resolve(); }; // onerror still means the request was sent
-      img.src = SHEET_URL + '?' + params.toString();
-      setTimeout(resolve, 6000); // safety timeout
+    await fetch(SHEET_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(row)
     });
     S.submitted = true;
   } catch(err) {
     console.warn('Sheet save failed:', err);
+    // Fallback: try GET with truncated avatar fields
+    try {
+      var fallback = Object.assign({}, row, {
+        avatar_who:   (row.avatar_who   || '').substring(0, 120),
+        avatar_pain:  (row.avatar_pain  || '').substring(0, 120),
+        avatar_tried: (row.avatar_tried || '').substring(0, 120)
+      });
+      var params = new URLSearchParams();
+      Object.entries(fallback).forEach(function(entry) { params.append(entry[0], entry[1] == null ? '' : entry[1]); });
+      var img = new Image();
+      img.src = SHEET_URL + '?' + params.toString();
+      await new Promise(function(resolve) { setTimeout(resolve, 4000); });
+      S.submitted = true;
+    } catch(e2) {
+      console.warn('Fallback save also failed:', e2);
+    }
   }
   S.submitting = false; render();
 }
@@ -1174,7 +1211,7 @@ function step3Html() {
     '<div class="section-header"><span class="eyebrow">Step 3 of 3</span><h2>Goals & Channels</h2></div>' +
     rq('goal','What is the primary goal of this content?', goals) +
     rq('tone','What tone best fits your brand?', tones, 'How should this content sound to your customers?') +
-    rq('platforms','Which channels do you use most?', platforms, 'We will tailor social content for your main channel') +
+    mqr('platforms','Which channels do you use? (select all that apply)', platforms, 'We will tailor social content for your chosen channels') +
   '</div>';
 }
 
