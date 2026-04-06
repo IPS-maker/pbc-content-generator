@@ -201,7 +201,8 @@ const S = {
     phone: savedMem ? (savedMem.phone || '') : '',
     website: savedMem ? (savedMem.website || '') : '',
     topic:'', topic_desc:'', audience:'', goal:'', tone:'',
-    platforms:'', keywords:'', competitors:''
+    platforms:'', keywords:'', competitors:'',
+    avatar_who:'', avatar_pain:'', avatar_tried:''
   },
   e: {},
   results: null,
@@ -234,38 +235,175 @@ const SB7_ROLES = [
   { key: 'success',  label: 'The Success',  badge: 'sb7-success',  icon: '&#10038;' }
 ];
 
-// Hook patterns based on evidence-based copywriting research:
-// - Empathy-led: "You + problem + feeling" (validates the reader's experience)
-// - Curiosity gap: "Most people get this wrong" (opens an information gap)
-// - Specific outcome: "How to [result] without [pain]" (promise + objection removal)
-// - Social proof: "X% of businesses..." (uses data to create urgency)
-// - Future pacing: "Imagine..." (places the reader in a better future)
-const HOOK_PATTERNS = {
-  problem: [
-    'You have spent hours on {TOPIC} and still feel like you are guessing. You are not alone. Most {AUDIENCE} in {REGION} face the same frustration.',
-    'If {TOPIC} feels harder than it should, there is a reason. The real problem is not what most people think it is.',
-    'You know {TOPIC} matters for your business. But every time you try to make progress, something gets in the way. Here is what is actually going on.'
-  ],
-  guide: [
-    'You do not need to figure out {TOPIC} alone. After working with {AUDIENCE} across {REGION}, we have seen what works and what wastes time and money.',
-    'We have helped dozens of {AUDIENCE} in {REGION} get {TOPIC} right. Here is what we have learned about what actually moves the needle.',
-    'The best {AUDIENCE} we work with all had the same question about {TOPIC}. Here is the honest answer, and the approach that gets results.'
-  ],
-  plan: [
-    'Getting {TOPIC} right does not need to be complicated. Follow these steps and you will have a clear path forward by the time you finish reading.',
-    'What if {TOPIC} came down to three simple steps? It does. Here is the exact process our clients in {REGION} follow to get results.',
-    'Stop searching for the perfect {TOPIC} strategy. This step-by-step plan gives you everything you need to take action today.'
-  ],
-  stakes: [
-    'Every month you put off {TOPIC}, your competitors in {REGION} move further ahead. Here is what inaction is really costing your business.',
-    'Most {AUDIENCE} do not act on {TOPIC} until it is too late. These are the warning signs you cannot afford to ignore.',
-    'Doing nothing about {TOPIC} is not the safe choice. It is the most expensive one. Here is what you stand to lose.'
-  ],
-  success: [
-    'Imagine opening your laptop on Monday and knowing exactly where your next customers are coming from. That is what a solid {TOPIC} strategy gives you.',
-    'Six months from now, your business could look completely different. Here is what happens when {AUDIENCE} in {REGION} get {TOPIC} right.',
-    'Picture this: your phone rings with enquiries, your calendar fills with the right clients, and your {TOPIC} runs like clockwork. That future starts here.'
-  ]
+// ─────────────────────────────────────────────────────────────────────────────
+// EVIDENCE-BASED HOOK ENGINE
+// Each SB7 cluster uses a distinct copywriting formula:
+//   Problem  → PAS (Problem-Agitate-Solve) — names the pain, twists the knife, hints at relief
+//   Guide    → Before-After-Bridge — shows the gap between now and better, bridges with empathy
+//   Plan     → AIDA (Attention-Interest-Desire-Action) — grabs, builds, creates want, directs
+//   Stakes   → Loss Aversion — people fear losing more than they value gaining
+//   Success  → Future Pacing — places the reader in a vivid, better tomorrow
+//
+// When avatar data is provided, hooks use the customer's own language.
+// When avatar data is empty, hooks use topic/audience defaults but stay formula-driven.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Helper: extract the first sentence or short phrase from avatar text
+function avatarSnippet(text, maxWords) {
+  if (!text || !text.trim()) return '';
+  var words = text.trim().split(/\s+/);
+  var snippet = words.slice(0, maxWords || 12).join(' ');
+  // Clean up trailing punctuation fragments
+  snippet = snippet.replace(/[,;:\s]+$/, '');
+  if (words.length > (maxWords || 12)) snippet += '...';
+  return snippet;
+}
+
+// Each generator returns an array of 3 hooks. generateStrategy() picks one at random.
+// Parameters: t = topic, a = audience label, r = region, av = { who, pain, tried }
+const HOOK_GENERATORS = {
+
+  // ── PAS: Problem → Agitate → Solve ──
+  problem: function(t, a, r, av) {
+    var hooks = [];
+    if (av.pain) {
+      // Avatar-driven PAS: use their actual pain language
+      var painSnip = avatarSnippet(av.pain, 15);
+      hooks.push(
+        painSnip + '. If that sounds familiar, you are not imagining it. Most ' + a + ' in ' + r + ' hit the same wall with ' + t + '. The good news: the fix is simpler than you think.'
+      );
+      hooks.push(
+        'Here is the part nobody talks about when it comes to ' + t + ': ' + painSnip.toLowerCase() + '. That frustration is real, and it is costing you more than you realise. This article breaks down why it happens and what to do about it.'
+      );
+      hooks.push(
+        'You started your business to do great work, not to lie awake worrying about ' + t + '. But ' + painSnip.toLowerCase() + '. That pressure builds. Left unchecked, it bleeds into everything else. There is a way to stop the cycle.'
+      );
+    } else {
+      // Default PAS without avatar
+      hooks.push(
+        'You have tried to get ' + t + ' right. You have read the articles, watched the videos, maybe even hired someone. And yet it still feels like guesswork. That gap between effort and results is not your fault. Here is what is really going on.'
+      );
+      hooks.push(
+        'Something about ' + t + ' is not working, and you can feel it. The longer you leave it, the wider the gap between where you are and where your competitors are heading. This article shows you what is causing the problem.'
+      );
+      hooks.push(
+        'Most ' + a + ' in ' + r + ' say the same thing about ' + t + ': "I know I should be doing more, but I do not know where to start." That uncertainty is the real enemy. Here is how to beat it.'
+      );
+    }
+    return hooks;
+  },
+
+  // ── Before-After-Bridge ──
+  guide: function(t, a, r, av) {
+    var hooks = [];
+    if (av.tried) {
+      var triedSnip = avatarSnippet(av.tried, 14);
+      hooks.push(
+        'Before: ' + triedSnip + '. After: a clear plan, steady results, and no more second-guessing. The bridge between those two places is shorter than you think. Here is what we have seen work for ' + a + ' in ' + r + '.'
+      );
+      hooks.push(
+        'If you have already tried to sort ' + t + ' on your own (' + triedSnip.toLowerCase() + '), you know how draining it is when nothing sticks. We have walked this road with dozens of ' + a + '. This is the approach that changed things.'
+      );
+      hooks.push(
+        'You are not starting from zero. You have already put in the effort on ' + t + '. The problem was never your commitment. It was the plan. Here is the one that ' + a + ' in ' + r + ' are using to get real results.'
+      );
+    } else {
+      hooks.push(
+        'Before: confused about ' + t + ', unsure who to trust, spending money with no clear return. After: a straightforward approach, measurable progress, and confidence in every decision. The bridge? Someone who has done this before.'
+      );
+      hooks.push(
+        'We have sat across the table from ' + a + ' who felt stuck on ' + t + '. Overwhelmed, frustrated, ready to give up. Six weeks later, the picture looked completely different. Here is what changed.'
+      );
+      hooks.push(
+        'You do not need another opinion on ' + t + '. You need someone who has seen what works in ' + r + ' and will tell you straight. That is exactly what this article does.'
+      );
+    }
+    return hooks;
+  },
+
+  // ── AIDA: Attention → Interest → Desire → Action ──
+  plan: function(t, a, r, av) {
+    var hooks = [];
+    var whoSnip = av.who ? avatarSnippet(av.who, 10) : '';
+    if (whoSnip) {
+      hooks.push(
+        'What if ' + t + ' came down to three clear steps you could finish this week? ' + whoSnip + ' — if that sounds like you, this plan was built for your schedule, your budget, and your goals. Read it, follow it, and watch things shift.'
+      );
+      hooks.push(
+        'Stop scrolling through advice on ' + t + ' that was written for big corporates. This is a step-by-step plan built for someone like you: ' + whoSnip.toLowerCase() + '. Three steps. No jargon. Real results.'
+      );
+      hooks.push(
+        'You do not need a marketing degree or a big budget to get ' + t + ' right. You need a plan that fits the way you actually work. Here are the exact steps other ' + a + ' in ' + r + ' are following right now.'
+      );
+    } else {
+      hooks.push(
+        'What if ' + t + ' came down to three clear steps? Not a 47-page strategy document. Not a course. Three steps you can start this week. Here is the exact process ' + a + ' in ' + r + ' are using to get results.'
+      );
+      hooks.push(
+        'Every ' + a.replace(/s$/, '') + ' who has cracked ' + t + ' started with the same question: "What do I actually do first?" This article answers that. Three steps, in order, with no fluff.'
+      );
+      hooks.push(
+        'Stop planning and start doing. This is the simplest, most practical guide to ' + t + ' you will find. Three steps. Each one takes less than an hour. By the end, you will know exactly what to do next.'
+      );
+    }
+    return hooks;
+  },
+
+  // ── Loss Aversion ──
+  stakes: function(t, a, r, av) {
+    var hooks = [];
+    if (av.pain) {
+      var painShort = avatarSnippet(av.pain, 10);
+      hooks.push(
+        'Right now, ' + painShort.toLowerCase() + '. Every week you wait to sort ' + t + ', that problem gets more expensive. Not just in money. In time, energy, and opportunities that quietly slip away.'
+      );
+      hooks.push(
+        'You already know something is off with ' + t + '. ' + painShort + '. The question is not whether you can afford to fix it. The question is whether you can afford another six months of the same thing.'
+      );
+      hooks.push(
+        'Doing nothing about ' + t + ' feels safe. It is not. While you wait, ' + painShort.toLowerCase() + ' — and your competitors in ' + r + ' are moving ahead. Here is what inaction is actually costing you.'
+      );
+    } else {
+      hooks.push(
+        'Every month you put off sorting ' + t + ', your business loses ground. Not in dramatic ways. In quiet ways: the enquiry that never came, the customer who chose someone else, the opportunity you did not see. Here is the real cost of waiting.'
+      );
+      hooks.push(
+        'Most ' + a + ' do not act on ' + t + ' until it hurts. By then, they have already lost months of progress. These are the warning signs that it is time to move, and what happens to businesses in ' + r + ' that wait too long.'
+      );
+      hooks.push(
+        'Ignoring ' + t + ' is not a neutral choice. It is the most expensive one you can make. This article lays out exactly what you stand to lose, in numbers that ' + a + ' in ' + r + ' will recognise.'
+      );
+    }
+    return hooks;
+  },
+
+  // ── Future Pacing ──
+  success: function(t, a, r, av) {
+    var hooks = [];
+    if (av.who) {
+      var whoShort = avatarSnippet(av.who, 10);
+      hooks.push(
+        'Picture this: six months from now, you have ' + t + ' running smoothly. Your phone rings with the right enquiries. You spend less time worrying and more time doing the work you love. For ' + a + ' like you (' + whoShort.toLowerCase() + '), that shift is closer than you think.'
+      );
+      hooks.push(
+        'Imagine opening your laptop on Monday morning and knowing exactly where your next customers are coming from. That is what happens when ' + a + ' in ' + r + ' get ' + t + ' right. Here is what the other side looks like.'
+      );
+      hooks.push(
+        'You got into business because you are good at what you do. ' + t + ' should support that, not bury it. Here is what life looks like for ' + a + ' who stopped struggling and started seeing results.'
+      );
+    } else {
+      hooks.push(
+        'Imagine opening your laptop on Monday and knowing exactly where your next customers are coming from. No guesswork. No stress. Just a clear pipeline built on smart ' + t + '. That future starts with this article.'
+      );
+      hooks.push(
+        'Six months from now, your business could look completely different. More enquiries, better customers, less scrambling. Here is what happens when ' + a + ' in ' + r + ' finally get ' + t + ' right.'
+      );
+      hooks.push(
+        'Picture this: your calendar fills with the right clients, your revenue steadies, and ' + t + ' runs like clockwork. That is not a fantasy. It is what happens when you follow a proven approach. This is that approach.'
+      );
+    }
+    return hooks;
+  }
 };
 
 const TEMPLATES = {
@@ -382,14 +520,14 @@ function rq(f, q, opts, hint) {
 function tq(f, lbl, type, ph, req, hint) {
   return '<div class="q"><label class="qlabel" for="f_' + f + '">' + lbl + (req ? ' <span style="color:var(--c-danger)">*</span>' : '') + '</label>' +
     (hint ? '<p class="hint">' + hint + '</p>' : '') +
-    '<input class="text-input" id="f_' + f + '" type="' + type + '" value="' + h(S.d[f]) + '" placeholder="' + ph + '" oninput="setText(\'' + f + '\',this.value)">' +
+    '<input class="text-input" id="f_' + f + '" type="' + type + '" value="' + h(S.d[f]) + '" placeholder="' + ph + '" spellcheck="true" oninput="setText(\'' + f + '\',this.value)">' +
     (S.e[f] ? '<span class="field-err" id="err_' + f + '">' + h(S.e[f]) + '</span>' : '') +
     '</div>';
 }
 function taq(f, lbl, ph, req, hint) {
   return '<div class="q"><label class="qlabel" for="f_' + f + '">' + lbl + (req ? ' <span style="color:var(--c-danger)">*</span>' : '') + '</label>' +
     (hint ? '<p class="hint">' + hint + '</p>' : '') +
-    '<textarea class="textarea-input" id="f_' + f + '" placeholder="' + ph + '" oninput="setText(\'' + f + '\',this.value)">' + h(S.d[f]) + '</textarea>' +
+    '<textarea class="textarea-input" id="f_' + f + '" placeholder="' + ph + '" spellcheck="true" oninput="setText(\'' + f + '\',this.value)">' + h(S.d[f]) + '</textarea>' +
     (S.e[f] ? '<span class="field-err" id="err_' + f + '">' + h(S.e[f]) + '</span>' : '') +
     '</div>';
 }
@@ -572,7 +710,14 @@ function generateStrategy() {
     .replace(/\{REGION\}/g, region)
     .replace(/\{YEAR\}/g, year);
 
-  // Generate SB7-aligned clusters with hooks
+  // Build avatar context for hook generators
+  var avatar = {
+    who:   (d.avatar_who   || '').trim(),
+    pain:  (d.avatar_pain  || '').trim(),
+    tried: (d.avatar_tried || '').trim()
+  };
+
+  // Generate SB7-aligned clusters with evidence-based hooks
   var clusters = tpl.clusters.map(function(c, i) {
     var count = [5, 7, 4, 6, 3][i];
     var title = c.title
@@ -586,14 +731,10 @@ function generateStrategy() {
       .replace(/\{INDUSTRY\}/g, d.bname || 'your business')
       .replace(/\{REGION\}/g, region);
 
-    // Select a hook from the evidence-based patterns
-    var hookPool = HOOK_PATTERNS[c.sb7] || HOOK_PATTERNS.problem;
-    var hookTpl = hookPool[Math.floor(Math.random() * hookPool.length)];
-    var hook = hookTpl
-      .replace(/\{TOPIC\}/g, topic.toLowerCase())
-      .replace(/\{AUDIENCE\}/g, audienceLabel)
-      .replace(/\{REGION\}/g, region)
-      .replace(/\{INDUSTRY\}/g, d.bname || 'your provider');
+    // Generate hook using the evidence-based formula for this SB7 role
+    var generator = HOOK_GENERATORS[c.sb7] || HOOK_GENERATORS.problem;
+    var hookOptions = generator(topic.toLowerCase(), audienceLabel, region, avatar);
+    var hook = hookOptions[Math.floor(Math.random() * hookOptions.length)];
 
     return {
       title: title,
@@ -692,6 +833,9 @@ async function submitToSheet() {
     platforms:       d.platforms,
     keywords:        d.keywords,
     competitors:     d.competitors,
+    avatar_who:      d.avatar_who,
+    avatar_pain:     d.avatar_pain,
+    avatar_tried:    d.avatar_tried,
     pillar_title:    r ? r.pillar.title : '',
     cluster_1:       r ? r.clusters[0].title : '',
     cluster_2:       r ? r.clusters[1].title : '',
@@ -849,7 +993,7 @@ function step2Html() {
     '<label class="qlabel" for="f_topic">What is the topic of this content? <span style="color:var(--c-danger)">*</span></label>' +
     '<p class="hint">Start typing and we will fetch live keyword data from Google to show you what people are actually searching for right now.</p>' +
     '<div class="kw-suggest-wrap">' +
-      '<input class="text-input" id="f_topic" type="text" value="' + h(S.d.topic) + '" placeholder="e.g. bathroom renovations, bookkeeping, craft beer" oninput="onTopicKeywordInput(this.value)" onfocus="if(S.liveKeywords.length)renderKwDropdown()" onblur="dismissKwDropdown()">' +
+      '<input class="text-input" id="f_topic" type="text" value="' + h(S.d.topic) + '" placeholder="e.g. bathroom renovations, bookkeeping, craft beer" spellcheck="true" oninput="onTopicKeywordInput(this.value)" onfocus="if(S.liveKeywords.length)renderKwDropdown()" onblur="dismissKwDropdown()">' +
       '<div class="kw-suggestions" id="kw-dropdown"></div>' +
     '</div>' +
     '<div class="selected-kws" id="selected-kws"></div>' +
@@ -866,7 +1010,7 @@ function step2Html() {
       '<span style="color:var(--c-info);font-weight:700;">Your solution:</span> How do you solve it? What makes your approach different?<br>' +
       '<span style="color:var(--c-success);font-weight:700;">The result:</span> What does life look like for your customer after you have helped them?' +
     '</div>' +
-    '<textarea class="textarea-input" id="f_topic_desc" placeholder="e.g. Homeowners in our area struggle to find a reliable plumber who turns up on time and gives a straight quote. We solve this by offering fixed-price packages with a same-day guarantee. After working with us, customers tell us they finally have a tradesperson they trust." oninput="setText(\'topic_desc\',this.value)">' + h(S.d.topic_desc) + '</textarea>' +
+    '<textarea class="textarea-input" id="f_topic_desc" placeholder="e.g. Homeowners in our area struggle to find a reliable plumber who turns up on time and gives a straight quote. We solve this by offering fixed-price packages with a same-day guarantee. After working with us, customers tell us they finally have a tradesperson they trust." spellcheck="true" oninput="setText(\'topic_desc\',this.value)">' + h(S.d.topic_desc) + '</textarea>' +
     (S.e.topic_desc ? '<span class="field-err" id="err_topic_desc">' + h(S.e.topic_desc) + '</span>' : '') +
   '</div>';
 
@@ -876,6 +1020,16 @@ function step2Html() {
     topicField +
     descField +
     rq('audience','Who is your target customer?', audiences, 'Who are you trying to reach with this content?') +
+
+    // Ideal Customer Avatar section
+    '<div class="card" style="margin-top:1rem;border-left:3px solid var(--c-accent);">' +
+      '<div class="section-header"><span class="eyebrow">Ideal Customer Avatar</span><h2>Who Exactly Are You Talking To?</h2></div>' +
+      '<p class="hint" style="margin-bottom:.75rem;">The more specific you are here, the sharper your content hooks and messaging will be. Think about one real customer you have helped, and describe them.</p>' +
+      taq('avatar_who', 'Describe your ideal customer', 'e.g. Sarah, a 42-year-old cafe owner in Timaru who has been running her business for 3 years. She is time-poor, manages a small team, and does most of her own marketing on her phone between shifts.', false, 'Who are they? What is their life and business like day to day?') +
+      taq('avatar_pain', 'What keeps them up at night?', 'e.g. She worries she is wasting money on marketing that does not work. She sees competitors getting more foot traffic and does not know why. She feels embarrassed asking for help because she thinks she should know this by now.', false, 'What frustrates them? What are they afraid of? What do they secretly worry about?') +
+      taq('avatar_tried', 'What have they already tried?', 'e.g. She paid for a Facebook ad that got likes but no customers. She tried posting on Instagram but ran out of ideas after two weeks. She looked at hiring a marketing agency but the quotes were too high for her budget.', false, 'What solutions have they attempted that did not work or fell short?') +
+    '</div>' +
+
     tq('competitors','Who are your main competitors?','text','e.g. ABC Plumbing, XYZ Services',false,'Optional — helps us differentiate your content') +
   '</div>';
 }
