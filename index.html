@@ -90,6 +90,32 @@ main{max-width:720px;margin:0 auto;padding:1.5rem 1rem 3rem;}
 .intro-tile span{display:block;font-size:.78rem;font-weight:600;color:var(--c-text-muted);}
 .spinner{display:inline-block;width:16px;height:16px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px;}
 @keyframes spin{to{transform:rotate(360deg);}}
+/* SB7 badge */
+.sb7-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4rem;}
+.sb7-problem{background:#fef2f2;color:#dc2626;border:1px solid #fecaca;}
+.sb7-guide{background:#f0f9ff;color:#0369a1;border:1px solid #bae6fd;}
+.sb7-plan{background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;}
+.sb7-stakes{background:#fffbeb;color:#d97706;border:1px solid #fde68a;}
+.sb7-success{background:#faf5ff;color:#7c3aed;border:1px solid #ddd6fe;}
+.hook-block{background:#FFFDF7;border:1px dashed var(--c-accent-border);border-radius:8px;padding:.65rem .85rem;margin-top:.5rem;font-size:.8rem;color:var(--c-text);line-height:1.55;font-style:italic;}
+.hook-label{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--c-accent);font-style:normal;display:block;margin-bottom:.2rem;}
+/* Keyword suggestions */
+.kw-suggest-wrap{position:relative;}
+.kw-suggestions{background:#fff;border:1.5px solid var(--c-accent);border-top:none;border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;display:none;position:absolute;width:100%;z-index:10;box-shadow:0 4px 12px rgba(0,0,0,.1);}
+.kw-suggestions.active{display:block;}
+.kw-item{padding:.5rem .85rem;font-size:.82rem;color:var(--c-text-muted);cursor:pointer;border-bottom:1px solid var(--c-border);display:flex;justify-content:space-between;align-items:center;}
+.kw-item:hover{background:var(--c-accent-bg);color:var(--c-accent);}
+.kw-item:last-child{border-bottom:none;}
+.kw-intent{font-size:.6rem;padding:1px 6px;border-radius:3px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;}
+.kw-intent-info{background:#f0f9ff;color:#0369a1;}
+.kw-intent-comm{background:#f0fdf4;color:#15803d;}
+.kw-intent-trans{background:#faf5ff;color:#7c3aed;}
+.kw-intent-nav{background:#fffbeb;color:#d97706;}
+.kw-loading{padding:.6rem .85rem;font-size:.8rem;color:var(--c-text-hint);text-align:center;}
+.selected-kws{display:flex;flex-wrap:wrap;gap:6px;margin-top:.5rem;}
+.selected-kw{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:.75rem;background:var(--c-accent-bg);color:var(--c-accent);font-weight:600;border:1px solid var(--c-accent-border);}
+.selected-kw .remove-kw{cursor:pointer;font-weight:700;font-size:.85rem;line-height:1;opacity:.7;}
+.selected-kw .remove-kw:hover{opacity:1;}
 @media(max-width:600px){
   .header-bottom{grid-template-columns:1fr;gap:1.25rem;}
   .hero-stats{align-items:flex-start;flex-direction:row;flex-wrap:wrap;gap:.5rem .75rem;}
@@ -125,7 +151,7 @@ main{max-width:720px;margin:0 auto;padding:1.5rem 1rem 3rem;}
 
 <script>
 // ─────────────────────────────────────────────────────────────────────────────
-// GOOGLE SHEETS — paste your Apps Script web app URL here
+// GOOGLE SHEETS — deployed Apps Script web app URL
 // ─────────────────────────────────────────────────────────────────────────────
 const SHEET_URL = 'https://script.google.com/macros/s/AKfycbwfEvpLYoq1xncz6BcXs-wwlUUJhgK9wOYYgzsHa-lB0VJB8SpgDLPPuMu0A5tZ4N0QXQ/exec';
 
@@ -142,15 +168,67 @@ const S = {
   e: {},
   results: null,
   submitting: false,
-  submitted: false
+  submitted: false,
+  liveKeywords: [],
+  selectedKeywords: [],
+  kwLoading: false,
+  kwDebounce: null
 };
 
 const NAV = ['Business','Topic','Goals','Strategy'];
 const SNAMES = {1:'Your business',2:'Content topic',3:'Goals & channels',4:'Your strategy'};
 
 // ─────────────────────────────────────────────────────────────────────────────
-// INDUSTRY → CONTENT TEMPLATES
+// STORYBRAND SB7 CLUSTER FRAMEWORK
+// Each industry gets a pillar template and 5 clusters mapped to SB7 steps:
+//   1. THE PROBLEM  — external + internal + philosophical pain
+//   2. THE GUIDE    — empathy + authority, positions business as trusted guide
+//   3. THE PLAN     — clear, actionable steps the hero can follow
+//   4. THE STAKES   — what failure looks like if they do not act
+//   5. THE SUCCESS  — the transformation and life after the problem is solved
 // ─────────────────────────────────────────────────────────────────────────────
+const SB7_ROLES = [
+  { key: 'problem',  label: 'The Problem',  badge: 'sb7-problem',  icon: '!' },
+  { key: 'guide',    label: 'The Guide',    badge: 'sb7-guide',    icon: '&#9733;' },
+  { key: 'plan',     label: 'The Plan',     badge: 'sb7-plan',     icon: '&#10003;' },
+  { key: 'stakes',   label: 'The Stakes',   badge: 'sb7-stakes',   icon: '&#9888;' },
+  { key: 'success',  label: 'The Success',  badge: 'sb7-success',  icon: '&#10038;' }
+];
+
+// Hook patterns based on evidence-based copywriting research:
+// - Empathy-led: "You + problem + feeling" (validates the reader's experience)
+// - Curiosity gap: "Most people get this wrong" (opens an information gap)
+// - Specific outcome: "How to [result] without [pain]" (promise + objection removal)
+// - Social proof: "X% of businesses..." (uses data to create urgency)
+// - Future pacing: "Imagine..." (places the reader in a better future)
+const HOOK_PATTERNS = {
+  problem: [
+    'You have spent hours on {TOPIC} and still feel like you are guessing. You are not alone. Most {AUDIENCE} in {REGION} face the same frustration.',
+    'If {TOPIC} feels harder than it should, there is a reason. The real problem is not what most people think it is.',
+    'You know {TOPIC} matters for your business. But every time you try to make progress, something gets in the way. Here is what is actually going on.'
+  ],
+  guide: [
+    'You do not need to figure out {TOPIC} alone. After working with {AUDIENCE} across {REGION}, we have seen what works and what wastes time and money.',
+    'We have helped dozens of {AUDIENCE} in {REGION} get {TOPIC} right. Here is what we have learned about what actually moves the needle.',
+    'The best {AUDIENCE} we work with all had the same question about {TOPIC}. Here is the honest answer, and the approach that gets results.'
+  ],
+  plan: [
+    'Getting {TOPIC} right does not need to be complicated. Follow these steps and you will have a clear path forward by the time you finish reading.',
+    'What if {TOPIC} came down to three simple steps? It does. Here is the exact process our clients in {REGION} follow to get results.',
+    'Stop searching for the perfect {TOPIC} strategy. This step-by-step plan gives you everything you need to take action today.'
+  ],
+  stakes: [
+    'Every month you put off {TOPIC}, your competitors in {REGION} move further ahead. Here is what inaction is really costing your business.',
+    'Most {AUDIENCE} do not act on {TOPIC} until it is too late. These are the warning signs you cannot afford to ignore.',
+    'Doing nothing about {TOPIC} is not the safe choice. It is the most expensive one. Here is what you stand to lose.'
+  ],
+  success: [
+    'Imagine opening your laptop on Monday and knowing exactly where your next customers are coming from. That is what a solid {TOPIC} strategy gives you.',
+    'Six months from now, your business could look completely different. Here is what happens when {AUDIENCE} in {REGION} get {TOPIC} right.',
+    'Picture this: your phone rings with enquiries, your calendar fills with the right clients, and your {TOPIC} runs like clockwork. That future starts here.'
+  ]
+};
+
 const TEMPLATES = {
   trades: {
     pillars: [
@@ -159,11 +237,11 @@ const TEMPLATES = {
       '{TOPIC}: What Every Homeowner in {REGION} Should Know'
     ],
     clusters: [
-      ['How Much Does {TOPIC} Cost in {REGION}?', 'Break down pricing, what affects the cost, and how to budget. Readers searching for pricing are close to buying — this is a high-intent keyword.'],
-      ['How to Know When You Need a {INDUSTRY}', 'Warning signs, seasonal timing, and when DIY is not enough. Positions your client as the honest expert who helps people make the right call.'],
-      ['{COUNT} Questions to Ask Before Hiring a {INDUSTRY}', 'Checklist article that builds trust. Each question demonstrates your client\'s expertise and weeds out cowboys.'],
-      ['{TOPIC} Mistakes That Cost {REGION} Homeowners Money', 'Common errors, how to avoid them, and what good work looks like. Educational content that readers save and share.'],
-      ['How Long Does {TOPIC} Take? A Realistic Timeline', 'Set expectations, explain the process step by step, and reduce buyer anxiety. Practical content that converts.']
+      { sb7: 'problem', title: 'Why {TOPIC} Feels So Confusing (And What Is Really Going On)', desc: 'Name the real frustration your customers face. The surface problem is finding a good {INDUSTRY}. The deeper problem is the fear of getting ripped off or making the wrong call. Address all three levels.' },
+      { sb7: 'guide', title: 'How We Approach {TOPIC} Differently in {REGION}', desc: 'Show empathy for the customer\'s situation, then demonstrate authority through real results. You understand their worry. You have solved this before. Brief proof, then move on.' },
+      { sb7: 'plan', title: '{COUNT} Steps to Getting {TOPIC} Right the First Time', desc: 'Give the reader a clear, simple process. Step one: assess. Step two: compare. Step three: decide. Remove confusion and make the next step feel easy.' },
+      { sb7: 'stakes', title: '{TOPIC} Mistakes That Cost {REGION} Homeowners Thousands', desc: 'Spell out what happens when people skip due diligence or hire the wrong {INDUSTRY}. Real consequences, not scare tactics. Use specific examples from {REGION}.' },
+      { sb7: 'success', title: 'What Happens When You Get {TOPIC} Right', desc: 'Paint the picture: the job done well, the home improved, the stress gone. Show the transformation. Include how past clients felt after working with someone who knew what they were doing.' }
     ]
   },
   retail: {
@@ -173,11 +251,11 @@ const TEMPLATES = {
       '{TOPIC}: Your Complete Buyer\'s Guide for {YEAR}'
     ],
     clusters: [
-      ['{TOPIC} vs {TOPIC}: Which Is Right for You?', 'Comparison article targeting people weighing up options. Side-by-side breakdown with honest recommendations.'],
-      ['{COUNT} Things to Look for When Buying {TOPIC}', 'Buyer education that positions your client as the trusted adviser. Each point demonstrates product knowledge.'],
-      ['How to Care for Your {TOPIC} — A Practical Guide', 'Post-purchase content that builds loyalty, reduces returns, and creates repeat customers.'],
-      ['Is {TOPIC} Worth the Investment? What the Numbers Say', 'Cost-benefit analysis that helps justify the purchase. Uses data and real examples.'],
-      ['The Most Common {TOPIC} Questions We Get Asked', 'FAQ-style content that captures long-tail search queries and feeds AI search results.']
+      { sb7: 'problem', title: 'Why Choosing {TOPIC} Feels Overwhelming (And How to Cut Through It)', desc: 'Too many options, too much conflicting advice, and no clear way to compare. Name the external confusion and the internal fear of wasting money on the wrong thing.' },
+      { sb7: 'guide', title: 'What We Tell Every Customer Who Asks About {TOPIC}', desc: 'Position yourself as the straight-talking guide. Show you understand the customer\'s hesitation, then share the honest advice you give in store every day.' },
+      { sb7: 'plan', title: 'A Simple Framework for Choosing the Right {TOPIC}', desc: 'Give the reader three to four clear criteria to make their decision. No jargon. By the end, they should feel confident about what to look for and what to avoid.' },
+      { sb7: 'stakes', title: 'The Hidden Costs of Buying the Wrong {TOPIC}', desc: 'Returns, replacements, frustration. Show what happens when people buy on price alone or skip the research. Real numbers where possible.' },
+      { sb7: 'success', title: 'How the Right {TOPIC} Changes Your Daily Life', desc: 'Tell the story of a customer who made the right choice and what life looks like now. Specific, tangible outcomes that the reader can see themselves in.' }
     ]
   },
   professional: {
@@ -187,11 +265,11 @@ const TEMPLATES = {
       '{TOPIC}: How It Works and Why It Matters for Your Business'
     ],
     clusters: [
-      ['How Much Does {TOPIC} Cost for a Small Business?', 'Pricing transparency builds trust. Break down what affects cost and what to budget for.'],
-      ['When Should You Hire a {INDUSTRY} for {TOPIC}?', 'Timing triggers that signal someone needs professional help. Captures high-intent searchers.'],
-      ['{COUNT} {TOPIC} Mistakes Small Businesses Make', 'Educational content that demonstrates expertise. Each mistake comes with a clear fix.'],
-      ['DIY vs Professional {TOPIC}: What Makes Sense?', 'Honest comparison that respects the reader\'s intelligence. Positions your client as the guide, not a hard sell.'],
-      ['How to Prepare Your Business for {TOPIC}', 'Step-by-step guide that reduces friction and makes it easy to take the next step with your client.']
+      { sb7: 'problem', title: 'The Real Reason {TOPIC} Keeps You Up at Night', desc: 'The external problem is the task itself. The internal problem is the fear of getting it wrong or wasting money. The philosophical problem: good business owners should not have to struggle with this alone.' },
+      { sb7: 'guide', title: 'What {REGION} Business Owners Need to Hear About {TOPIC}', desc: 'Speak as someone who has walked this road with other businesses. Show empathy for the overwhelm, then demonstrate your track record briefly and honestly.' },
+      { sb7: 'plan', title: 'A Step-by-Step Approach to {TOPIC} That Actually Works', desc: 'Three to four clear steps that any business owner can follow. Remove the complexity. Make each step feel achievable with a realistic time frame.' },
+      { sb7: 'stakes', title: 'What Happens to Businesses That Ignore {TOPIC}', desc: 'Lost revenue, missed opportunities, falling behind competitors who took action. State the real cost of doing nothing, backed by examples from {REGION} businesses.' },
+      { sb7: 'success', title: 'How Getting {TOPIC} Right Changed These {REGION} Businesses', desc: 'Paint the picture of success: more time, more revenue, more confidence. Show the before and after. Let the reader imagine themselves in that position.' }
     ]
   },
   hospitality: {
@@ -201,11 +279,11 @@ const TEMPLATES = {
       '{TOPIC} for {INDUSTRY}: What Actually Works in {YEAR}'
     ],
     clusters: [
-      ['How to Attract More Customers with {TOPIC}', 'Practical tactics backed by examples. Focus on what works for local businesses, not big chains.'],
-      ['{TOPIC} on a Budget: Smart Strategies for Small Operators', 'Cost-effective approaches that deliver results without breaking the bank. Perfect for startups.'],
-      ['What Your Customers Actually Want from Your {TOPIC}', 'Customer insight article that bridges the gap between what owners think matters and what diners or guests value.'],
-      ['{COUNT} {TOPIC} Trends in {REGION} for {YEAR}', 'Timely content that demonstrates the business is current and paying attention to the market.'],
-      ['How to Measure Whether Your {TOPIC} Is Working', 'Metrics and measurement. Turns gut feeling into data. Practical KPIs for small operators.']
+      { sb7: 'problem', title: 'Why {TOPIC} Feels Like an Uphill Battle for Small Operators', desc: 'Big chains have big budgets. You do not. Name the frustration of competing with less, and the deeper worry that you are falling behind without knowing why.' },
+      { sb7: 'guide', title: 'What We Have Learned Helping {REGION} Hospitality Businesses with {TOPIC}', desc: 'Share what you have seen working with local operators. Show that you understand the tight margins and the long hours. Then show the results you have helped others achieve.' },
+      { sb7: 'plan', title: 'A Practical {TOPIC} Plan for Busy Hospitality Owners', desc: 'Simple, time-efficient steps that fit around a busy service schedule. No fluff. Each step has a clear outcome and takes less than an hour.' },
+      { sb7: 'stakes', title: 'The Cost of Getting {TOPIC} Wrong in Hospitality', desc: 'Empty tables, negative reviews, staff turnover. Show the real consequences of not addressing {TOPIC}, and how small problems become big ones fast.' },
+      { sb7: 'success', title: 'What Happens When {TOPIC} Finally Works for Your Venue', desc: 'Bookings up, reviews improving, repeat customers returning. Show the transformation in terms hospitality owners care about: bums on seats and cash in the till.' }
     ]
   },
   health: {
@@ -215,11 +293,11 @@ const TEMPLATES = {
       '{TOPIC} for {REGION} Families: Your Questions Answered'
     ],
     clusters: [
-      ['How to Choose the Right {INDUSTRY} for {TOPIC}', 'Decision-making guide with clear criteria. Helps people feel confident in their choice.'],
-      ['What to Expect During Your First {TOPIC} Appointment', 'Reduce anxiety, set expectations, remove barriers to booking. Conversion-focused content.'],
-      ['{COUNT} Common Myths About {TOPIC} — And the Truth', 'Myth-busting content that demonstrates clinical authority and builds trust through honest education.'],
-      ['How Often Should You Get {TOPIC}? A Practical Guide', 'Frequency and scheduling content. Practical, no-nonsense advice that encourages regular visits.'],
-      ['{TOPIC} Costs in {REGION}: What to Budget For', 'Pricing transparency. Break down what affects cost and help people plan their investment in health.']
+      { sb7: 'problem', title: 'Why Finding the Right Help with {TOPIC} Feels So Hard', desc: 'Conflicting information, long wait times, and the fear of choosing the wrong provider. Name the confusion, the anxiety, and the feeling that you should not have to navigate this alone.' },
+      { sb7: 'guide', title: 'How We Help {REGION} Families Navigate {TOPIC}', desc: 'Show that you understand how stressful health decisions are. Then share your experience and approach briefly. One or two proof points. Keep it human.' },
+      { sb7: 'plan', title: 'Your First Steps with {TOPIC}: What to Do and When', desc: 'Clear, calming steps that reduce anxiety. What to expect, how to prepare, and what questions to ask. Make the reader feel in control.' },
+      { sb7: 'stakes', title: 'What Happens When You Wait Too Long on {TOPIC}', desc: 'Delayed treatment, higher costs, and worse outcomes. Be honest without being alarmist. Help the reader understand why acting now matters.' },
+      { sb7: 'success', title: 'Life After Getting {TOPIC} Sorted', desc: 'Peace of mind, better health, more energy. Paint the picture of life on the other side. Use relatable, everyday outcomes that families in {REGION} will recognise.' }
     ]
   },
   general: {
@@ -229,11 +307,11 @@ const TEMPLATES = {
       '{TOPIC}: A Practical Guide for {REGION} Business Owners'
     ],
     clusters: [
-      ['How Much Does {TOPIC} Cost? A Realistic Guide', 'Pricing content captures high-intent searchers. Be transparent and build trust with real numbers.'],
-      ['{COUNT} Common {TOPIC} Mistakes and How to Avoid Them', 'Educational content that demonstrates expertise. Each mistake paired with a practical solution.'],
-      ['How to Get Started with {TOPIC}: A Step-by-Step Guide', 'Beginner-friendly content that removes friction and makes the first step feel easy.'],
-      ['Why {TOPIC} Matters for Small Businesses in {REGION}', 'Authority content that explains the "why" before the "how". Positions your client as a thought leader.'],
-      ['{TOPIC} Questions Answered: What Our Clients Ask Most', 'FAQ-style content optimised for AI search and voice queries. Captures dozens of long-tail keywords.']
+      { sb7: 'problem', title: 'Why {TOPIC} Is Harder Than It Should Be (And What to Do About It)', desc: 'The surface challenge, the deeper frustration, and the principle at stake. Your reader wants to get {TOPIC} right. Name why it has been so difficult until now.' },
+      { sb7: 'guide', title: 'What We Have Learned Helping Businesses with {TOPIC} in {REGION}', desc: 'Show you understand the struggle. Share brief proof of your experience. Position yourself as the guide, not the hero. The reader is the hero.' },
+      { sb7: 'plan', title: 'How to Get Started with {TOPIC}: A Clear, Simple Plan', desc: 'Three to four steps that remove confusion. Each step is specific and achievable. The reader finishes this article knowing exactly what to do next.' },
+      { sb7: 'stakes', title: 'The Real Cost of Putting Off {TOPIC}', desc: 'Time lost, money wasted, opportunities missed. Be honest about what inaction costs without resorting to scare tactics. Use real examples where you can.' },
+      { sb7: 'success', title: 'What Changes When You Finally Get {TOPIC} Right', desc: 'More confidence, more customers, more control. Show the reader what their business and life look like on the other side of this decision.' }
     ]
   }
 };
@@ -253,86 +331,283 @@ function setText(f, v) {
 
 function pillHtml(f, v, lbl) {
   const sel = S.d[f] === v;
-  return `<label class="pill${sel?' selected':''}"><input type="radio" name="${f}" value="${v}" onchange="setField('${f}','${v}')">${h(lbl)}</label>`;
+  return '<label class="pill' + (sel ? ' selected' : '') + '"><input type="radio" name="' + f + '" value="' + v + '" onchange="setField(\'' + f + '\',\'' + v + '\')">' + h(lbl) + '</label>';
 }
 function rq(f, q, opts, hint) {
-  return `<div class="q">
-    <label class="qlabel">${q}</label>
-    ${hint ? `<p class="hint">${hint}</p>` : ''}
-    <div class="pills">${opts.map(o => pillHtml(f, o.v, o.l)).join('')}</div>
-    ${S.e[f] ? `<span class="field-err" id="err_${f}">${h(S.e[f])}</span>` : ''}
-  </div>`;
+  return '<div class="q"><label class="qlabel">' + q + '</label>' +
+    (hint ? '<p class="hint">' + hint + '</p>' : '') +
+    '<div class="pills">' + opts.map(function(o){ return pillHtml(f, o.v, o.l); }).join('') + '</div>' +
+    (S.e[f] ? '<span class="field-err" id="err_' + f + '">' + h(S.e[f]) + '</span>' : '') +
+    '</div>';
 }
 function tq(f, lbl, type, ph, req, hint) {
-  return `<div class="q">
-    <label class="qlabel" for="f_${f}">${lbl}${req?' <span style="color:var(--c-danger)">*</span>':''}</label>
-    ${hint ? `<p class="hint">${hint}</p>` : ''}
-    <input class="text-input" id="f_${f}" type="${type}" value="${h(S.d[f])}" placeholder="${ph}" oninput="setText('${f}',this.value)">
-    ${S.e[f] ? `<span class="field-err" id="err_${f}">${h(S.e[f])}</span>` : ''}
-  </div>`;
+  return '<div class="q"><label class="qlabel" for="f_' + f + '">' + lbl + (req ? ' <span style="color:var(--c-danger)">*</span>' : '') + '</label>' +
+    (hint ? '<p class="hint">' + hint + '</p>' : '') +
+    '<input class="text-input" id="f_' + f + '" type="' + type + '" value="' + h(S.d[f]) + '" placeholder="' + ph + '" oninput="setText(\'' + f + '\',this.value)">' +
+    (S.e[f] ? '<span class="field-err" id="err_' + f + '">' + h(S.e[f]) + '</span>' : '') +
+    '</div>';
 }
 function taq(f, lbl, ph, req, hint) {
-  return `<div class="q">
-    <label class="qlabel" for="f_${f}">${lbl}${req?' <span style="color:var(--c-danger)">*</span>':''}</label>
-    ${hint ? `<p class="hint">${hint}</p>` : ''}
-    <textarea class="textarea-input" id="f_${f}" placeholder="${ph}" oninput="setText('${f}',this.value)">${h(S.d[f])}</textarea>
-    ${S.e[f] ? `<span class="field-err" id="err_${f}">${h(S.e[f])}</span>` : ''}
-  </div>`;
+  return '<div class="q"><label class="qlabel" for="f_' + f + '">' + lbl + (req ? ' <span style="color:var(--c-danger)">*</span>' : '') + '</label>' +
+    (hint ? '<p class="hint">' + hint + '</p>' : '') +
+    '<textarea class="textarea-input" id="f_' + f + '" placeholder="' + ph + '" oninput="setText(\'' + f + '\',this.value)">' + h(S.d[f]) + '</textarea>' +
+    (S.e[f] ? '<span class="field-err" id="err_' + f + '">' + h(S.e[f]) + '</span>' : '') +
+    '</div>';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CONTENT GENERATION ENGINE
+// LIVE KEYWORD RESEARCH — Google Autocomplete via CORS proxy
+// ─────────────────────────────────────────────────────────────────────────────
+function classifyIntent(kw) {
+  var lower = kw.toLowerCase();
+  if (/^(how|what|why|when|where|who|does|is |are |can |do )/.test(lower)) return { label: 'Info', css: 'kw-intent-info' };
+  if (/(buy|price|cost|hire|near me|cheap|best|top|review|vs|compare)/.test(lower)) return { label: 'Commercial', css: 'kw-intent-comm' };
+  if (/(book|order|purchase|quote|sign up|register|download|get started)/.test(lower)) return { label: 'Transactional', css: 'kw-intent-trans' };
+  return { label: 'Info', css: 'kw-intent-info' };
+}
+
+async function fetchKeywordSuggestions(query) {
+  if (!query || query.length < 3) { S.liveKeywords = []; return; }
+  S.kwLoading = true;
+  renderKwDropdown();
+
+  var suggestions = [];
+  var suffixes = ['', ' for', ' how', ' cost', ' best', ' near'];
+
+  try {
+    // Use Google Autocomplete via CORS proxy
+    var fetches = suffixes.map(function(suffix) {
+      var url = 'https://corsproxy.io/?' + encodeURIComponent(
+        'https://suggestqueries.google.com/complete/search?client=firefox&q=' +
+        encodeURIComponent(query + suffix) + '&gl=nz&hl=en'
+      );
+      return fetch(url, { signal: AbortSignal.timeout(4000) })
+        .then(function(r) { return r.json(); })
+        .then(function(data) { return Array.isArray(data[1]) ? data[1] : []; })
+        .catch(function() { return []; });
+    });
+
+    var results = await Promise.all(fetches);
+    var seen = {};
+    results.forEach(function(arr) {
+      arr.forEach(function(kw) {
+        var clean = kw.trim().toLowerCase();
+        if (!seen[clean] && clean !== query.toLowerCase()) {
+          seen[clean] = true;
+          suggestions.push(clean);
+        }
+      });
+    });
+  } catch(err) {
+    console.warn('Keyword fetch failed, using local fallback:', err);
+  }
+
+  // If API returned nothing, generate smart local suggestions
+  if (suggestions.length === 0) {
+    var region = 'south canterbury';
+    var base = query.toLowerCase();
+    var fallbacks = [
+      base + ' ' + region,
+      base + ' for small business',
+      base + ' cost ' + region,
+      'how much does ' + base + ' cost',
+      'best ' + base + ' ' + region,
+      base + ' near me',
+      base + ' guide',
+      base + ' tips for beginners',
+      'how to choose ' + base,
+      base + ' vs ' + base + ' alternatives'
+    ];
+    suggestions = fallbacks;
+  }
+
+  S.liveKeywords = suggestions.slice(0, 12).map(function(kw) {
+    var intent = classifyIntent(kw);
+    return { keyword: kw, intent: intent.label, intentCss: intent.css };
+  });
+  S.kwLoading = false;
+  renderKwDropdown();
+}
+
+function renderKwDropdown() {
+  var wrap = document.getElementById('kw-dropdown');
+  if (!wrap) return;
+
+  if (S.kwLoading) {
+    wrap.innerHTML = '<div class="kw-loading"><span class="spinner" style="border-color:var(--c-accent);border-top-color:transparent;width:12px;height:12px;"></span> Fetching live keyword data from Google...</div>';
+    wrap.classList.add('active');
+    return;
+  }
+  if (S.liveKeywords.length === 0) {
+    wrap.classList.remove('active');
+    return;
+  }
+
+  var html = '';
+  S.liveKeywords.forEach(function(kw, i) {
+    if (S.selectedKeywords.indexOf(kw.keyword) === -1) {
+      html += '<div class="kw-item" onclick="selectKeyword(' + i + ')">' +
+        '<span>' + h(kw.keyword) + '</span>' +
+        '<span class="kw-intent ' + kw.intentCss + '">' + kw.intent + '</span>' +
+        '</div>';
+    }
+  });
+
+  if (html) {
+    wrap.innerHTML = html;
+    wrap.classList.add('active');
+  } else {
+    wrap.classList.remove('active');
+  }
+}
+
+function selectKeyword(idx) {
+  var kw = S.liveKeywords[idx];
+  if (kw && S.selectedKeywords.indexOf(kw.keyword) === -1) {
+    S.selectedKeywords.push(kw.keyword);
+    S.d.keywords = S.selectedKeywords.join(', ');
+    renderKwDropdown();
+    renderSelectedKws();
+  }
+}
+
+function removeKeyword(idx) {
+  S.selectedKeywords.splice(idx, 1);
+  S.d.keywords = S.selectedKeywords.join(', ');
+  renderSelectedKws();
+}
+
+function renderSelectedKws() {
+  var el = document.getElementById('selected-kws');
+  if (!el) return;
+  if (S.selectedKeywords.length === 0) { el.innerHTML = ''; return; }
+  el.innerHTML = S.selectedKeywords.map(function(kw, i) {
+    var intent = classifyIntent(kw);
+    return '<span class="selected-kw">' + h(kw) +
+      ' <span class="kw-intent ' + intent.css + '" style="margin-left:2px;">' + intent.label + '</span>' +
+      ' <span class="remove-kw" onclick="removeKeyword(' + i + ')">&#10005;</span></span>';
+  }).join('');
+}
+
+function onTopicKeywordInput(val) {
+  setText('topic', val);
+  clearTimeout(S.kwDebounce);
+  S.kwDebounce = setTimeout(function() {
+    fetchKeywordSuggestions(val.trim());
+  }, 500);
+}
+
+function dismissKwDropdown() {
+  setTimeout(function() {
+    var wrap = document.getElementById('kw-dropdown');
+    if (wrap) wrap.classList.remove('active');
+  }, 200);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONTENT GENERATION ENGINE — StoryBrand SB7
 // ─────────────────────────────────────────────────────────────────────────────
 function generateStrategy() {
-  const d = S.d;
-  const topic = d.topic.trim();
-  const industry = d.industry || 'general';
-  const region = 'South Canterbury';
-  const year = new Date().getFullYear();
-  const tpl = TEMPLATES[industry] || TEMPLATES.general;
+  var d = S.d;
+  var topic = d.topic.trim();
+  var industry = d.industry || 'general';
+  var region = 'South Canterbury';
+  var year = new Date().getFullYear();
+  var tpl = TEMPLATES[industry] || TEMPLATES.general;
+
+  // Audience label for hooks
+  var audienceLabels = {
+    local_consumers: 'local customers',
+    homeowners: 'homeowners',
+    business_owners: 'business owners',
+    professionals: 'professionals',
+    families: 'families'
+  };
+  var audienceLabel = audienceLabels[d.audience] || 'business owners';
 
   // Pick pillar
-  const pillarTpl = tpl.pillars[Math.floor(Math.random() * tpl.pillars.length)];
-  const pillarTitle = pillarTpl
+  var pillarTpl = tpl.pillars[Math.floor(Math.random() * tpl.pillars.length)];
+  var pillarTitle = pillarTpl
     .replace(/\{TOPIC\}/g, topic)
     .replace(/\{INDUSTRY\}/g, d.bname || 'Professional')
     .replace(/\{REGION\}/g, region)
     .replace(/\{YEAR\}/g, year);
 
-  // Generate clusters
-  const clusters = tpl.clusters.map((c, i) => {
-    const count = [5, 7, 8, 6, 10][i];
-    const title = c[0]
+  // Generate SB7-aligned clusters with hooks
+  var clusters = tpl.clusters.map(function(c, i) {
+    var count = [5, 7, 4, 6, 3][i];
+    var title = c.title
       .replace(/\{TOPIC\}/g, topic)
       .replace(/\{INDUSTRY\}/g, d.bname || 'Professional')
       .replace(/\{REGION\}/g, region)
       .replace(/\{YEAR\}/g, year)
       .replace(/\{COUNT\}/g, count);
-    const desc = c[1]
+    var desc = c.desc
       .replace(/\{TOPIC\}/g, topic)
       .replace(/\{INDUSTRY\}/g, d.bname || 'your business')
       .replace(/\{REGION\}/g, region);
-    return { title, desc, num: i + 1 };
+
+    // Select a hook from the evidence-based patterns
+    var hookPool = HOOK_PATTERNS[c.sb7] || HOOK_PATTERNS.problem;
+    var hookTpl = hookPool[Math.floor(Math.random() * hookPool.length)];
+    var hook = hookTpl
+      .replace(/\{TOPIC\}/g, topic.toLowerCase())
+      .replace(/\{AUDIENCE\}/g, audienceLabel)
+      .replace(/\{REGION\}/g, region)
+      .replace(/\{INDUSTRY\}/g, d.bname || 'your provider');
+
+    return {
+      title: title,
+      desc: desc,
+      hook: hook,
+      sb7: c.sb7,
+      sb7Role: SB7_ROLES[i],
+      num: i + 1
+    };
   });
 
-  // Generate keywords
-  const topicLower = topic.toLowerCase();
-  const primaryKw = topicLower;
-  const secondaryKws = [
+  // Build keywords — combine selected live keywords with smart defaults
+  var topicLower = topic.toLowerCase();
+  var primaryKw = topicLower;
+  var secondary = [];
+
+  // Add user-selected live keywords first
+  if (S.selectedKeywords.length > 0) {
+    S.selectedKeywords.forEach(function(kw) {
+      if (secondary.indexOf(kw) === -1 && kw !== primaryKw) {
+        secondary.push(kw);
+      }
+    });
+  }
+
+  // Fill remaining with smart defaults
+  var defaults = [
     topicLower + ' ' + region.toLowerCase(),
     topicLower + ' for small business',
-    topicLower + ' guide',
+    'how much does ' + topicLower + ' cost',
     'best ' + topicLower + ' ' + region.toLowerCase()
   ];
-  const clusterKws = clusters.map(c => {
-    const words = c.title.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(' ').filter(w => w.length > 3);
-    return words.slice(0, 4).join(' ');
+  defaults.forEach(function(kw) {
+    if (secondary.length < 6 && secondary.indexOf(kw) === -1) {
+      secondary.push(kw);
+    }
+  });
+
+  // Cluster-specific long-tail keywords
+  var clusterKws = clusters.map(function(c) {
+    var sb7 = c.sb7;
+    if (sb7 === 'problem') return topicLower + ' problems';
+    if (sb7 === 'guide') return 'how to choose ' + topicLower;
+    if (sb7 === 'plan') return topicLower + ' step by step';
+    if (sb7 === 'stakes') return topicLower + ' mistakes to avoid';
+    if (sb7 === 'success') return topicLower + ' results ' + region.toLowerCase();
+    return topicLower + ' guide';
   });
 
   return {
     pillar: { title: pillarTitle },
-    clusters,
-    keywords: { primary: primaryKw, secondary: secondaryKws, cluster: clusterKws },
+    clusters: clusters,
+    keywords: { primary: primaryKw, secondary: secondary, cluster: clusterKws },
     calendar: generateCalendar(pillarTitle, clusters),
     deliverables: {
       articles: 6,
@@ -347,12 +622,12 @@ function generateStrategy() {
 
 function generateCalendar(pillar, clusters) {
   return [
-    { week: 'Week 1', content: `Publish pillar article. LinkedIn post + email newsletter blast.`, title: pillar },
-    { week: 'Week 2', content: `Publish cluster 1. LinkedIn carousel + Instagram post.`, title: clusters[0].title },
-    { week: 'Week 3', content: `Publish cluster 2. LinkedIn post + Facebook share.`, title: clusters[1].title },
-    { week: 'Week 4', content: `Publish cluster 3. LinkedIn carousel + email newsletter.`, title: clusters[2].title },
-    { week: 'Week 5', content: `Publish cluster 4. LinkedIn post + Instagram carousel.`, title: clusters[3].title },
-    { week: 'Week 6', content: `Publish cluster 5. LinkedIn carousel + roundup email.`, title: clusters[4].title },
+    { week: 'Week 1', content: 'Publish pillar article. LinkedIn post + email newsletter blast.', title: pillar },
+    { week: 'Week 2', content: 'Publish cluster 1 (The Problem). LinkedIn carousel + Instagram post.', title: clusters[0].title },
+    { week: 'Week 3', content: 'Publish cluster 2 (The Guide). LinkedIn post + Facebook share.', title: clusters[1].title },
+    { week: 'Week 4', content: 'Publish cluster 3 (The Plan). LinkedIn carousel + email newsletter.', title: clusters[2].title },
+    { week: 'Week 5', content: 'Publish cluster 4 (The Stakes). LinkedIn post + Instagram carousel.', title: clusters[3].title },
+    { week: 'Week 6', content: 'Publish cluster 5 (The Success). LinkedIn carousel + roundup email.', title: clusters[4].title }
   ];
 }
 
@@ -362,8 +637,8 @@ function generateCalendar(pillar, clusters) {
 async function submitToSheet() {
   if (!SHEET_URL || S.submitted) return;
   S.submitting = true; render();
-  const d = S.d, r = S.results;
-  const row = {
+  var d = S.d, r = S.results;
+  var row = {
     timestamp:       new Date().toISOString(),
     business_name:   d.bname,
     industry:        d.industry,
@@ -386,18 +661,17 @@ async function submitToSheet() {
     cluster_5:       r ? r.clusters[4].title : ''
   };
   try {
-    const params = new URLSearchParams();
-    Object.entries(row).forEach(([k, v]) => params.append(k, v == null ? '' : v));
+    var params = new URLSearchParams();
+    Object.entries(row).forEach(function(entry) { params.append(entry[0], entry[1] == null ? '' : entry[1]); });
     await fetch(SHEET_URL, { method: 'POST', body: params, mode: 'no-cors' });
     S.submitted = true;
   } catch(err) {
     console.warn('Sheet save failed:', err);
-    // Fallback: image pixel method
     try {
-      const params2 = new URLSearchParams();
-      Object.entries(row).forEach(([k, v]) => params2.append(k, v == null ? '' : v));
-      await new Promise(resolve => {
-        const img = new Image();
+      var params2 = new URLSearchParams();
+      Object.entries(row).forEach(function(entry) { params2.append(entry[0], entry[1] == null ? '' : entry[1]); });
+      await new Promise(function(resolve) {
+        var img = new Image();
         img.onload = img.onerror = resolve;
         img.src = SHEET_URL + '?' + params2.toString();
         setTimeout(resolve, 5000);
@@ -412,7 +686,7 @@ async function submitToSheet() {
 // VALIDATION
 // ─────────────────────────────────────────────────────────────────────────────
 function validate1() {
-  const e = {}, d = S.d;
+  var e = {}, d = S.d;
   if (!d.bname.trim()) e.bname = 'Business name is required';
   if (!d.email.trim()) e.email = 'Email is required';
   else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email)) e.email = 'Please enter a valid email';
@@ -420,13 +694,13 @@ function validate1() {
   return e;
 }
 function validate2() {
-  const e = {}, d = S.d;
+  var e = {}, d = S.d;
   if (!d.topic.trim()) e.topic = 'Please enter your main topic';
   if (!d.audience) e.audience = 'Please select your target audience';
   return e;
 }
 function validate3() {
-  const e = {}, d = S.d;
+  var e = {}, d = S.d;
   if (!d.goal) e.goal = 'Please select your primary goal';
   if (!d.tone) e.tone = 'Please select your preferred tone';
   return e;
@@ -437,21 +711,19 @@ function validate3() {
 // ─────────────────────────────────────────────────────────────────────────────
 function next() {
   if (S.step === 1) {
-    const e = validate1();
-    if (Object.keys(e).length) { S.e = e; render(); return; }
+    var e1 = validate1();
+    if (Object.keys(e1).length) { S.e = e1; render(); return; }
   }
   if (S.step === 2) {
-    const e = validate2();
-    if (Object.keys(e).length) { S.e = e; render(); return; }
+    var e2 = validate2();
+    if (Object.keys(e2).length) { S.e = e2; render(); return; }
   }
   if (S.step === 3) {
-    const e = validate3();
-    if (Object.keys(e).length) { S.e = e; render(); return; }
-    // Generate strategy
+    var e3 = validate3();
+    if (Object.keys(e3).length) { S.e = e3; render(); return; }
     S.results = generateStrategy();
     S.step = 4;
     render();
-    // Auto-submit to sheet
     submitToSheet();
     return;
   }
@@ -460,18 +732,19 @@ function next() {
 
 function restart() {
   S.step = 0; S.results = null; S.e = {}; S.submitted = false; S.submitting = false;
-  Object.keys(S.d).forEach(k => S.d[k] = '');
+  S.liveKeywords = []; S.selectedKeywords = [];
+  Object.keys(S.d).forEach(function(k) { S.d[k] = ''; });
   render();
 }
 
 function updateNav() {
-  const ns = document.getElementById('navsteps');
-  const ni = document.getElementById('navinner');
+  var ns = document.getElementById('navsteps');
+  var ni = document.getElementById('navinner');
   if (S.step === 0 || S.step === 4) { ns.style.display = 'none'; return; }
   ns.style.display = 'block';
-  ni.innerHTML = NAV.slice(0, 3).map((l, i) => {
-    const n = i + 1, cur = S.step === n, done = S.step > n;
-    return `<div class="nav-chip${cur?' active':done?' done':''}">${done?'&#10003; ':''}${l}</div>`;
+  ni.innerHTML = NAV.slice(0, 3).map(function(l, i) {
+    var n = i + 1, cur = S.step === n, done = S.step > n;
+    return '<div class="nav-chip' + (cur ? ' active' : done ? ' done' : '') + '">' + (done ? '&#10003; ' : '') + l + '</div>';
   }).join('');
   document.getElementById('pbar').style.width = Math.round((S.step / 3) * 100) + '%';
 }
@@ -480,157 +753,189 @@ function updateNav() {
 // STEP RENDERERS
 // ─────────────────────────────────────────────────────────────────────────────
 function renderIntro() {
-  return `<div style="text-align:center;padding:1.5rem 0;">
-    <div class="intro-grid">
-      <div class="intro-tile"><span class="tile-icon">📋</span><span>Tell us about<br>your business</span></div>
-      <div class="intro-tile"><span class="tile-icon">🏗️</span><span>We generate your<br>content strategy</span></div>
-      <div class="intro-tile"><span class="tile-icon">📦</span><span>Get a complete<br>content pack</span></div>
-    </div>
-    <div style="margin-top:2rem;">
-      <button class="btn btn-next btn-start" onclick="S.step=1;render();">Build my content strategy &rarr;</button>
-      <p style="margin-top:.75rem;font-size:.78rem;color:var(--c-text-hint);">No sign-up required &mdash; instant results</p>
-    </div>
-  </div>`;
+  return '<div style="text-align:center;padding:1.5rem 0;">' +
+    '<div class="intro-grid">' +
+      '<div class="intro-tile"><span class="tile-icon">&#128203;</span><span>Tell us about<br>your business</span></div>' +
+      '<div class="intro-tile"><span class="tile-icon">&#127959;</span><span>We generate your<br>content strategy</span></div>' +
+      '<div class="intro-tile"><span class="tile-icon">&#128230;</span><span>Get a complete<br>content pack</span></div>' +
+    '</div>' +
+    '<div style="margin-top:2rem;">' +
+      '<button class="btn btn-next btn-start" onclick="S.step=1;render();">Build my content strategy &rarr;</button>' +
+      '<p style="margin-top:.75rem;font-size:.78rem;color:var(--c-text-hint);">No sign-up required &mdash; instant results</p>' +
+    '</div>' +
+  '</div>';
 }
 
 function step1Html() {
-  const industries = [
+  var industries = [
     {v:'trades',l:'Trades & construction'},{v:'retail',l:'Retail & e-commerce'},
     {v:'professional',l:'Professional services'},{v:'hospitality',l:'Hospitality & food'},
     {v:'health',l:'Health & wellness'},{v:'general',l:'Other'}
   ];
-  return `<div class="card">
-    <div class="section-header"><span class="eyebrow">Step 1 of 3</span><h2>Your Business</h2></div>
-    ${tq('bname','Business name','text','e.g. Timaru Plumbing Ltd',true)}
-    ${tq('email','Email address','email','you@yourbusiness.co.nz',true,'We will send your full content strategy here')}
-    ${tq('phone','Phone number','tel','e.g. 03 688 0000',false)}
-    ${tq('website','Website URL','url','www.yourbusiness.co.nz',false,'Leave blank if you do not have one yet')}
-    ${rq('industry','What industry are you in?', industries)}
-  </div>`;
+  return '<div class="card">' +
+    '<div class="section-header"><span class="eyebrow">Step 1 of 3</span><h2>Your Business</h2></div>' +
+    tq('bname','Business name','text','e.g. Timaru Plumbing Ltd',true) +
+    tq('email','Email address','email','you@yourbusiness.co.nz',true,'We will send your full content strategy here') +
+    tq('phone','Phone number','tel','e.g. 03 688 0000',false) +
+    tq('website','Website URL','url','www.yourbusiness.co.nz',false,'Leave blank if you do not have one yet') +
+    rq('industry','What industry are you in?', industries) +
+  '</div>';
 }
 
 function step2Html() {
-  const audiences = [
+  var audiences = [
     {v:'local_consumers',l:'Local consumers'},{v:'homeowners',l:'Homeowners'},
     {v:'business_owners',l:'Business owners'},{v:'professionals',l:'Professionals'},
     {v:'families',l:'Families'}
   ];
-  return `<div class="card">
-    <div class="section-header"><span class="eyebrow">Step 2 of 3</span><h2>Content Topic</h2></div>
-    ${tq('topic','What is the main topic you want to be known for?','text','e.g. bathroom renovations, bookkeeping, craft beer',true,'This becomes the subject of your pillar article — your main, comprehensive piece')}
-    ${taq('topic_desc','Tell us a bit more about what you want to cover','Describe what you would like the content to focus on — specific services, common questions your customers ask, problems you solve...', false, 'The more detail you give, the better your strategy will be')}
-    ${rq('audience','Who is your target customer?', audiences, 'Who are you trying to reach with this content?')}
-    ${tq('keywords','Any specific keywords you want to target?','text','e.g. plumber Timaru, emergency plumbing South Canterbury',false,'Optional — we will suggest keywords based on your topic if you leave this blank')}
-    ${tq('competitors','Who are your main competitors?','text','e.g. ABC Plumbing, XYZ Services',false,'Optional — helps us differentiate your content')}
-  </div>`;
+
+  // Topic field with live keyword suggestions
+  var topicField = '<div class="q">' +
+    '<label class="qlabel" for="f_topic">What is the main topic you want to be known for? <span style="color:var(--c-danger)">*</span></label>' +
+    '<p class="hint">Start typing and we will fetch live keyword data from Google to show you what people are actually searching for right now.</p>' +
+    '<div class="kw-suggest-wrap">' +
+      '<input class="text-input" id="f_topic" type="text" value="' + h(S.d.topic) + '" placeholder="e.g. bathroom renovations, bookkeeping, craft beer" oninput="onTopicKeywordInput(this.value)" onfocus="if(S.liveKeywords.length)renderKwDropdown()" onblur="dismissKwDropdown()">' +
+      '<div class="kw-suggestions" id="kw-dropdown"></div>' +
+    '</div>' +
+    '<div class="selected-kws" id="selected-kws"></div>' +
+    (S.e.topic ? '<span class="field-err" id="err_topic">' + h(S.e.topic) + '</span>' : '') +
+  '</div>';
+
+  return '<div class="card">' +
+    '<div class="section-header"><span class="eyebrow">Step 2 of 3</span><h2>Content Topic</h2></div>' +
+    '<div class="info-box">&#128269; <strong>Live keyword research:</strong> As you type your topic, we pull real-time search suggestions from Google. Click any suggestion to add it to your keyword list. Each keyword shows its search intent (Informational, Commercial, or Transactional).</div>' +
+    topicField +
+    taq('topic_desc','Tell us a bit more about what you want to cover','Describe what you would like the content to focus on — specific services, common questions your customers ask, problems you solve...', false, 'The more detail you give, the better your strategy will be') +
+    rq('audience','Who is your target customer?', audiences, 'Who are you trying to reach with this content?') +
+    tq('competitors','Who are your main competitors?','text','e.g. ABC Plumbing, XYZ Services',false,'Optional — helps us differentiate your content') +
+  '</div>';
 }
 
 function step3Html() {
-  const goals = [
+  var goals = [
     {v:'leads',l:'Generate leads'},{v:'authority',l:'Build authority'},
     {v:'educate',l:'Educate customers'},{v:'sales',l:'Drive sales'}
   ];
-  const tones = [
+  var tones = [
     {v:'professional',l:'Professional & authoritative'},
     {v:'conversational',l:'Conversational & approachable'},
     {v:'technical',l:'Technical & detailed'},
     {v:'warm',l:'Warm & supportive'}
   ];
-  const platforms = [
+  var platforms = [
     {v:'linkedin',l:'LinkedIn'},{v:'instagram',l:'Instagram'},
     {v:'facebook',l:'Facebook'},{v:'email',l:'Email newsletter'}
   ];
-  return `<div class="card">
-    <div class="section-header"><span class="eyebrow">Step 3 of 3</span><h2>Goals & Channels</h2></div>
-    ${rq('goal','What is the primary goal of this content?', goals)}
-    ${rq('tone','What tone best fits your brand?', tones, 'How should this content sound to your customers?')}
-    ${rq('platforms','Which channels do you use most?', platforms, 'We will tailor social content for your main channel')}
-  </div>`;
+  return '<div class="card">' +
+    '<div class="section-header"><span class="eyebrow">Step 3 of 3</span><h2>Goals & Channels</h2></div>' +
+    rq('goal','What is the primary goal of this content?', goals) +
+    rq('tone','What tone best fits your brand?', tones, 'How should this content sound to your customers?') +
+    rq('platforms','Which channels do you use most?', platforms, 'We will tailor social content for your main channel') +
+  '</div>';
 }
 
 function resultsHtml() {
-  const r = S.results;
+  var r = S.results;
   if (!r) return '<p>Something went wrong. Please try again.</p>';
-  const biz = h(S.d.bname || 'Your Business');
+  var biz = h(S.d.bname || 'Your Business');
 
-  let html = '';
+  var html = '';
 
   // Submitted status
   if (S.submitted) {
-    html += `<div class="success-box">&#10003; Your strategy has been saved. We will be in touch at <strong>${h(S.d.email)}</strong> with your complete content pack.</div>`;
+    html += '<div class="success-box">&#10003; Your strategy has been saved. We will be in touch at <strong>' + h(S.d.email) + '</strong> with your complete content pack.</div>';
   } else if (S.submitting) {
-    html += `<div class="info-box"><span class="spinner"></span> Saving your strategy...</div>`;
+    html += '<div class="info-box"><span class="spinner"></span> Saving your strategy...</div>';
   }
 
   // Header
-  html += `<div class="card" style="text-align:center;">
-    <p style="font-size:.72rem;color:var(--c-text-hint);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.3rem;">Content strategy for</p>
-    <h2 style="font-family:'Josefin Sans',sans-serif;font-size:1.3rem;font-weight:700;margin-bottom:.5rem;">${biz}</h2>
-    <p style="font-size:.88rem;color:var(--c-text-muted);">Topic: <strong>${h(S.d.topic)}</strong></p>
-  </div>`;
+  html += '<div class="card" style="text-align:center;">' +
+    '<p style="font-size:.72rem;color:var(--c-text-hint);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.3rem;">Content strategy for</p>' +
+    '<h2 style="font-family:\'Josefin Sans\',sans-serif;font-size:1.3rem;font-weight:700;margin-bottom:.5rem;">' + biz + '</h2>' +
+    '<p style="font-size:.88rem;color:var(--c-text-muted);">Topic: <strong>' + h(S.d.topic) + '</strong></p>' +
+  '</div>';
+
+  // SB7 framework explainer
+  html += '<div class="card">' +
+    '<div class="section-header"><span class="eyebrow">StoryBrand SB7 Framework</span><h2>How Your Content Works Together</h2></div>' +
+    '<p style="font-size:.84rem;color:var(--c-text-muted);margin-bottom:.75rem;">Your content strategy follows the StoryBrand framework. Your customer is the hero of this story. Your business is the guide who helps them win. Each article plays a specific role in that story.</p>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:6px;">' +
+      '<span class="sb7-badge sb7-problem">1. The Problem</span>' +
+      '<span class="sb7-badge sb7-guide">2. The Guide</span>' +
+      '<span class="sb7-badge sb7-plan">3. The Plan</span>' +
+      '<span class="sb7-badge sb7-stakes">4. The Stakes</span>' +
+      '<span class="sb7-badge sb7-success">5. The Success</span>' +
+    '</div>' +
+  '</div>';
 
   // Pillar article
-  html += `<div class="card">
-    <div class="section-header"><span class="eyebrow">Pillar Article</span><h2>Your Main Article</h2></div>
-    <div class="pillar-card">
-      <h3>${h(r.pillar.title)}</h3>
-      <p>This is your cornerstone content piece — a comprehensive, 2,500 to 4,000 word guide that covers the full topic. Every cluster article links back to this. It targets your primary keyword and establishes your authority.</p>
-    </div>
-    <div style="margin-top:.75rem;">
-      <span class="keyword-tag">${h(r.keywords.primary)}</span>
-      ${r.keywords.secondary.map(k => `<span class="keyword-tag">${h(k)}</span>`).join('')}
-    </div>
-  </div>`;
+  html += '<div class="card">' +
+    '<div class="section-header"><span class="eyebrow">Pillar Article</span><h2>Your Main Article</h2></div>' +
+    '<div class="pillar-card">' +
+      '<h3>' + h(r.pillar.title) + '</h3>' +
+      '<p>This is your cornerstone content piece — a comprehensive, 2,500 to 4,000 word guide that tells the full StoryBrand story. It introduces the hero (your customer), names the problem, positions you as the guide, lays out the plan, and paints the picture of success. Every cluster article links back to this.</p>' +
+    '</div>' +
+    '<div style="margin-top:.75rem;">' +
+      '<span class="keyword-tag">' + h(r.keywords.primary) + '</span>' +
+      r.keywords.secondary.map(function(k) { return '<span class="keyword-tag">' + h(k) + '</span>'; }).join('') +
+    '</div>' +
+  '</div>';
 
-  // Cluster articles
-  html += `<div class="card">
-    <div class="section-header"><span class="eyebrow">5 Supporting Articles</span><h2>Topic Clusters</h2></div>
-    <p style="font-size:.84rem;color:var(--c-text-muted);margin-bottom:1rem;">Each cluster article dives deep into a subtopic, targeting a specific long-tail keyword. Together with the pillar, they form a content hub that search engines and AI systems love.</p>`;
-  r.clusters.forEach((c, i) => {
-    html += `<div class="cluster-card">
-      <h4>Cluster ${c.num}: ${h(c.title)}</h4>
-      <p>${h(c.desc)}</p>
-      <div style="margin-top:.4rem;"><span class="keyword-tag">${h(r.keywords.cluster[i])}</span></div>
-    </div>`;
+  // Cluster articles with SB7 badges and hooks
+  html += '<div class="card">' +
+    '<div class="section-header"><span class="eyebrow">5 Supporting Articles</span><h2>StoryBrand Topic Clusters</h2></div>' +
+    '<p style="font-size:.84rem;color:var(--c-text-muted);margin-bottom:1rem;">Each cluster article plays a defined role in the StoryBrand story. Together with the pillar, they form a content hub that search engines and AI systems reward because it answers every question a buyer has on their journey.</p>';
+
+  r.clusters.forEach(function(c, i) {
+    html += '<div class="cluster-card">' +
+      '<span class="sb7-badge ' + c.sb7Role.badge + '">' + c.sb7Role.label + '</span>' +
+      '<h4>Cluster ' + c.num + ': ' + h(c.title) + '</h4>' +
+      '<p>' + h(c.desc) + '</p>' +
+      '<div class="hook-block">' +
+        '<span class="hook-label">Opening hook</span>' +
+        h(c.hook) +
+      '</div>' +
+      '<div style="margin-top:.4rem;"><span class="keyword-tag">' + h(r.keywords.cluster[i]) + '</span></div>' +
+    '</div>';
   });
-  html += `</div>`;
+  html += '</div>';
 
   // Content calendar
-  html += `<div class="card">
-    <div class="section-header"><span class="eyebrow">Publishing Schedule</span><h2>6-Week Content Calendar</h2></div>`;
-  r.calendar.forEach(w => {
-    html += `<div class="calendar-row">
-      <div class="calendar-week">${w.week}</div>
-      <div class="calendar-content"><strong>${h(w.title)}</strong><br>${h(w.content)}</div>
-    </div>`;
+  html += '<div class="card">' +
+    '<div class="section-header"><span class="eyebrow">Publishing Schedule</span><h2>6-Week Content Calendar</h2></div>';
+  r.calendar.forEach(function(w) {
+    html += '<div class="calendar-row">' +
+      '<div class="calendar-week">' + w.week + '</div>' +
+      '<div class="calendar-content"><strong>' + h(w.title) + '</strong><br>' + h(w.content) + '</div>' +
+    '</div>';
   });
-  html += `</div>`;
+  html += '</div>';
 
   // What you get
-  html += `<div class="card">
-    <div class="section-header"><span class="eyebrow">Your Content Pack Includes</span><h2>What You Get</h2></div>
-    <div class="deliverable-grid">
-      <div class="deliverable-item"><div class="d-icon">📄</div><div class="d-label">Word Documents</div><div class="d-count">6 articles</div></div>
-      <div class="deliverable-item"><div class="d-icon">🌐</div><div class="d-label">HTML Pages</div><div class="d-count">6 landing pages</div></div>
-      <div class="deliverable-item"><div class="d-icon">📱</div><div class="d-label">Social Content</div><div class="d-count">LinkedIn, Instagram, Facebook</div></div>
-      <div class="deliverable-item"><div class="d-icon">📊</div><div class="d-label">SEO Cheat Sheet</div><div class="d-count">Keywords, meta, schema</div></div>
-      <div class="deliverable-item"><div class="d-icon">📅</div><div class="d-label">Content Calendar</div><div class="d-count">6-week schedule</div></div>
-      <div class="deliverable-item"><div class="d-icon">📧</div><div class="d-label">Email Drafts</div><div class="d-count">6 newsletter emails</div></div>
-    </div>
-  </div>`;
+  html += '<div class="card">' +
+    '<div class="section-header"><span class="eyebrow">Your Content Pack Includes</span><h2>What You Get</h2></div>' +
+    '<div class="deliverable-grid">' +
+      '<div class="deliverable-item"><div class="d-icon">&#128196;</div><div class="d-label">Word Documents</div><div class="d-count">6 articles</div></div>' +
+      '<div class="deliverable-item"><div class="d-icon">&#127760;</div><div class="d-label">HTML Pages</div><div class="d-count">6 landing pages</div></div>' +
+      '<div class="deliverable-item"><div class="d-icon">&#128241;</div><div class="d-label">Social Content</div><div class="d-count">LinkedIn, Instagram, Facebook</div></div>' +
+      '<div class="deliverable-item"><div class="d-icon">&#128202;</div><div class="d-label">SEO Cheat Sheet</div><div class="d-count">Keywords, meta, schema</div></div>' +
+      '<div class="deliverable-item"><div class="d-icon">&#128197;</div><div class="d-label">Content Calendar</div><div class="d-count">6-week schedule</div></div>' +
+      '<div class="deliverable-item"><div class="d-icon">&#128231;</div><div class="d-label">Email Drafts</div><div class="d-count">6 newsletter emails</div></div>' +
+    '</div>' +
+  '</div>';
 
   // CTA
-  html += `<div class="card" style="text-align:center;border:2px solid var(--c-accent-border);background:var(--c-accent-bg);">
-    <h3 style="font-family:'Josefin Sans',sans-serif;font-size:1rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--c-accent-dark);margin-bottom:.5rem;">Ready to bring this strategy to life?</h3>
-    <p style="font-size:.88rem;color:var(--c-text-muted);margin-bottom:1rem;max-width:400px;margin-left:auto;margin-right:auto;">We will take this strategy and produce every deliverable — written, formatted, and ready to publish. You focus on running your business.</p>
-    <a href="mailto:lyndon@pivotbusiness.co.nz?subject=Content%20Pack%20Request%20-%20${encodeURIComponent(S.d.bname)}&body=Hi%20Lyndon%2C%0A%0AI%20just%20completed%20the%20content%20strategy%20generator%20for%20${encodeURIComponent(S.d.bname)}%20and%20I%E2%80%99d%20like%20to%20discuss%20getting%20the%20full%20content%20pack%20produced.%0A%0ATopic%3A%20${encodeURIComponent(S.d.topic)}%0A%0AThanks" class="btn btn-next" style="display:inline-block;text-decoration:none;padding:.85rem 2rem;">Get in touch &rarr;</a>
-    <p style="margin-top:.75rem;font-size:.75rem;color:var(--c-text-hint);">or call us to discuss your content pack</p>
-  </div>`;
+  html += '<div class="card" style="text-align:center;border:2px solid var(--c-accent-border);background:var(--c-accent-bg);">' +
+    '<h3 style="font-family:\'Josefin Sans\',sans-serif;font-size:1rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--c-accent-dark);margin-bottom:.5rem;">Ready to bring this strategy to life?</h3>' +
+    '<p style="font-size:.88rem;color:var(--c-text-muted);margin-bottom:1rem;max-width:400px;margin-left:auto;margin-right:auto;">We will take this strategy and produce every deliverable — written, formatted, and ready to publish. You focus on running your business.</p>' +
+    '<a href="mailto:lyndon@pivotbusiness.co.nz?subject=Content%20Pack%20Request%20-%20' + encodeURIComponent(S.d.bname) + '&body=Hi%20Lyndon%2C%0A%0AI%20just%20completed%20the%20content%20strategy%20generator%20for%20' + encodeURIComponent(S.d.bname) + '%20and%20I%E2%80%99d%20like%20to%20discuss%20getting%20the%20full%20content%20pack%20produced.%0A%0ATopic%3A%20' + encodeURIComponent(S.d.topic) + '%0A%0AThanks" class="btn btn-next" style="display:inline-block;text-decoration:none;padding:.85rem 2rem;">Get in touch &rarr;</a>' +
+    '<p style="margin-top:.75rem;font-size:.75rem;color:var(--c-text-hint);">or call us to discuss your content pack</p>' +
+  '</div>';
 
   // Restart
-  html += `<div style="text-align:center;margin-top:1rem;">
-    <button class="btn btn-back" onclick="restart()">&#8635; Start over</button>
-  </div>`;
+  html += '<div style="text-align:center;margin-top:1rem;">' +
+    '<button class="btn btn-back" onclick="restart()">&#8635; Start over</button>' +
+  '</div>';
 
   return html;
 }
@@ -638,27 +943,30 @@ function resultsHtml() {
 // ─────────────────────────────────────────────────────────────────────────────
 // RENDER
 // ─────────────────────────────────────────────────────────────────────────────
-const STEPS = [renderIntro, step1Html, step2Html, step3Html, resultsHtml];
+var STEPS = [renderIntro, step1Html, step2Html, step3Html, resultsHtml];
 
 function render() {
   updateNav();
-  const content = (STEPS[S.step] || renderIntro)();
-  const btns = S.step > 0 && S.step < 4
-    ? `<div class="btn-row">
-        <button class="btn btn-back" onclick="S.step=Math.max(0,S.step-1);render();">&larr; Back</button>
-        <button class="btn btn-next" onclick="next();">${S.step===3?'Generate my strategy &rarr;':'Next &rarr;'}</button>
-       </div>`
+  var content = (STEPS[S.step] || renderIntro)();
+  var btns = (S.step > 0 && S.step < 4)
+    ? '<div class="btn-row">' +
+        '<button class="btn btn-back" onclick="S.step=Math.max(0,S.step-1);render();">&larr; Back</button>' +
+        '<button class="btn btn-next" onclick="next();">' + (S.step === 3 ? 'Generate my strategy &rarr;' : 'Next &rarr;') + '</button>' +
+       '</div>'
     : '';
   document.getElementById('main').innerHTML = content + btns;
-  // Reset progress bar on results
   if (S.step === 4) document.getElementById('pbar').style.width = '100%';
+  // Re-render selected keywords if on step 2
+  if (S.step === 2) {
+    setTimeout(function() { renderSelectedKws(); }, 10);
+  }
 }
 
 render();
 </script>
 <!--
 ================================================================================
-GOOGLE SHEETS SETUP — SAME PROCESS AS YOUR VISIBILITY CHECK
+GOOGLE SHEETS SETUP
 ================================================================================
 
 STEP 1: Create a Google Sheet
@@ -675,7 +983,10 @@ STEP 2: Create the Apps Script
 function doPost(e) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  var row = headers.map(function(h) { return e.parameter[h] || ''; });
+  var row = headers.map(function(h) {
+    if (h === 'timestamp') return new Date().toISOString();
+    return e.parameter[h] || '';
+  });
   sheet.appendRow(row);
   return ContentService.createTextOutput('OK');
 }
