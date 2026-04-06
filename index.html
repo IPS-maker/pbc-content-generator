@@ -156,12 +156,50 @@ main{max-width:720px;margin:0 auto;padding:1.5rem 1rem 3rem;}
 const SHEET_URL = 'https://script.google.com/macros/s/AKfycbwfEvpLYoq1xncz6BcXs-wwlUUJhgK9wOYYgzsHa-lB0VJB8SpgDLPPuMu0A5tZ4N0QXQ/exec';
 
 // ─────────────────────────────────────────────────────────────────────────────
+// LOCAL STORAGE MEMORY — remember returning users
+// ─────────────────────────────────────────────────────────────────────────────
+const STORAGE_KEY = 'pbc_content_gen_user';
+const MEMORY_FIELDS = ['bname', 'industry', 'email', 'phone', 'website'];
+
+function saveUserMemory() {
+  try {
+    var mem = {};
+    MEMORY_FIELDS.forEach(function(f) { if (S.d[f]) mem[f] = S.d[f]; });
+    if (Object.keys(mem).length > 0) {
+      mem._savedAt = new Date().toISOString();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(mem));
+    }
+  } catch(e) { /* localStorage unavailable */ }
+}
+
+function loadUserMemory() {
+  try {
+    var raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch(e) { return null; }
+}
+
+function clearUserMemory() {
+  try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
+  MEMORY_FIELDS.forEach(function(f) { S.d[f] = ''; });
+  S.isReturning = false;
+  render();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // STATE
 // ─────────────────────────────────────────────────────────────────────────────
+var savedMem = loadUserMemory();
+
 const S = {
   step: 0,
   d: {
-    bname:'', industry:'', email:'', phone:'', website:'',
+    bname: savedMem ? (savedMem.bname || '') : '',
+    industry: savedMem ? (savedMem.industry || '') : '',
+    email: savedMem ? (savedMem.email || '') : '',
+    phone: savedMem ? (savedMem.phone || '') : '',
+    website: savedMem ? (savedMem.website || '') : '',
     topic:'', topic_desc:'', audience:'', goal:'', tone:'',
     platforms:'', keywords:'', competitors:''
   },
@@ -172,7 +210,8 @@ const S = {
   liveKeywords: [],
   selectedKeywords: [],
   kwLoading: false,
-  kwDebounce: null
+  kwDebounce: null,
+  isReturning: !!savedMem
 };
 
 const NAV = ['Business','Topic','Goals','Strategy'];
@@ -660,24 +699,21 @@ async function submitToSheet() {
     cluster_4:       r ? r.clusters[3].title : '',
     cluster_5:       r ? r.clusters[4].title : ''
   };
+  // Use GET via image pixel — most reliable method for cross-origin Apps Script
+  // POST with mode:'no-cors' loses the body during Google's 302 redirect
   try {
     var params = new URLSearchParams();
     Object.entries(row).forEach(function(entry) { params.append(entry[0], entry[1] == null ? '' : entry[1]); });
-    await fetch(SHEET_URL, { method: 'POST', body: params, mode: 'no-cors' });
+    await new Promise(function(resolve, reject) {
+      var img = new Image();
+      img.onload = function() { resolve(); };
+      img.onerror = function() { resolve(); }; // onerror still means the request was sent
+      img.src = SHEET_URL + '?' + params.toString();
+      setTimeout(resolve, 6000); // safety timeout
+    });
     S.submitted = true;
   } catch(err) {
     console.warn('Sheet save failed:', err);
-    try {
-      var params2 = new URLSearchParams();
-      Object.entries(row).forEach(function(entry) { params2.append(entry[0], entry[1] == null ? '' : entry[1]); });
-      await new Promise(function(resolve) {
-        var img = new Image();
-        img.onload = img.onerror = resolve;
-        img.src = SHEET_URL + '?' + params2.toString();
-        setTimeout(resolve, 5000);
-      });
-      S.submitted = true;
-    } catch(e2) { console.warn('Fallback also failed:', e2); }
   }
   S.submitting = false; render();
 }
@@ -713,6 +749,8 @@ function next() {
   if (S.step === 1) {
     var e1 = validate1();
     if (Object.keys(e1).length) { S.e = e1; render(); return; }
+    // Save business details to memory for returning users
+    saveUserMemory();
   }
   if (S.step === 2) {
     var e2 = validate2();
@@ -733,7 +771,13 @@ function next() {
 function restart() {
   S.step = 0; S.results = null; S.e = {}; S.submitted = false; S.submitting = false;
   S.liveKeywords = []; S.selectedKeywords = [];
+  // Keep memory fields (bname, email, etc.) pre-filled for returning users
+  var mem = loadUserMemory();
   Object.keys(S.d).forEach(function(k) { S.d[k] = ''; });
+  if (mem) {
+    MEMORY_FIELDS.forEach(function(f) { if (mem[f]) S.d[f] = mem[f]; });
+    S.isReturning = true;
+  }
   render();
 }
 
@@ -772,8 +816,19 @@ function step1Html() {
     {v:'professional',l:'Professional services'},{v:'hospitality',l:'Hospitality & food'},
     {v:'health',l:'Health & wellness'},{v:'general',l:'Other'}
   ];
+
+  // Welcome back banner for returning users
+  var welcomeBack = '';
+  if (S.isReturning && S.d.bname) {
+    welcomeBack = '<div class="success-box" style="display:flex;justify-content:space-between;align-items:center;">' +
+      '<span>&#128075; Welcome back, <strong>' + h(S.d.bname) + '</strong>. We have filled in your details from last time.</span>' +
+      '<span onclick="clearUserMemory()" style="cursor:pointer;font-size:.75rem;text-decoration:underline;white-space:nowrap;margin-left:12px;">Clear saved data</span>' +
+    '</div>';
+  }
+
   return '<div class="card">' +
     '<div class="section-header"><span class="eyebrow">Step 1 of 3</span><h2>Your Business</h2></div>' +
+    welcomeBack +
     tq('bname','Business name','text','e.g. Timaru Plumbing Ltd',true) +
     tq('email','Email address','email','you@yourbusiness.co.nz',true,'We will send your full content strategy here') +
     tq('phone','Phone number','tel','e.g. 03 688 0000',false) +
@@ -791,7 +846,7 @@ function step2Html() {
 
   // Topic field with live keyword suggestions
   var topicField = '<div class="q">' +
-    '<label class="qlabel" for="f_topic">What is the main topic you want to be known for? <span style="color:var(--c-danger)">*</span></label>' +
+    '<label class="qlabel" for="f_topic">What is the topic of this content? <span style="color:var(--c-danger)">*</span></label>' +
     '<p class="hint">Start typing and we will fetch live keyword data from Google to show you what people are actually searching for right now.</p>' +
     '<div class="kw-suggest-wrap">' +
       '<input class="text-input" id="f_topic" type="text" value="' + h(S.d.topic) + '" placeholder="e.g. bathroom renovations, bookkeeping, craft beer" oninput="onTopicKeywordInput(this.value)" onfocus="if(S.liveKeywords.length)renderKwDropdown()" onblur="dismissKwDropdown()">' +
@@ -801,11 +856,25 @@ function step2Html() {
     (S.e.topic ? '<span class="field-err" id="err_topic">' + h(S.e.topic) + '</span>' : '') +
   '</div>';
 
+  // SB7-guided description field with structured prompts
+  var descField = '<div class="q">' +
+    '<label class="qlabel" for="f_topic_desc">Tell us about the story behind this topic</label>' +
+    '<p class="hint">Answer as many of these as you can — they shape the entire content strategy.</p>' +
+    '<div style="background:var(--c-surface2);border:1px solid var(--c-border);border-radius:8px;padding:.75rem 1rem;margin-bottom:.6rem;font-size:.8rem;color:var(--c-text-muted);line-height:1.7;">' +
+      '<strong style="color:var(--c-text);font-size:.82rem;">Think about:</strong><br>' +
+      '<span style="color:var(--c-danger);font-weight:700;">The problem:</span> What problem does your customer face? What frustrates them?<br>' +
+      '<span style="color:var(--c-info);font-weight:700;">Your solution:</span> How do you solve it? What makes your approach different?<br>' +
+      '<span style="color:var(--c-success);font-weight:700;">The result:</span> What does life look like for your customer after you have helped them?' +
+    '</div>' +
+    '<textarea class="textarea-input" id="f_topic_desc" placeholder="e.g. Homeowners in our area struggle to find a reliable plumber who turns up on time and gives a straight quote. We solve this by offering fixed-price packages with a same-day guarantee. After working with us, customers tell us they finally have a tradesperson they trust." oninput="setText(\'topic_desc\',this.value)">' + h(S.d.topic_desc) + '</textarea>' +
+    (S.e.topic_desc ? '<span class="field-err" id="err_topic_desc">' + h(S.e.topic_desc) + '</span>' : '') +
+  '</div>';
+
   return '<div class="card">' +
     '<div class="section-header"><span class="eyebrow">Step 2 of 3</span><h2>Content Topic</h2></div>' +
     '<div class="info-box">&#128269; <strong>Live keyword research:</strong> As you type your topic, we pull real-time search suggestions from Google. Click any suggestion to add it to your keyword list. Each keyword shows its search intent (Informational, Commercial, or Transactional).</div>' +
     topicField +
-    taq('topic_desc','Tell us a bit more about what you want to cover','Describe what you would like the content to focus on — specific services, common questions your customers ask, problems you solve...', false, 'The more detail you give, the better your strategy will be') +
+    descField +
     rq('audience','Who is your target customer?', audiences, 'Who are you trying to reach with this content?') +
     tq('competitors','Who are your main competitors?','text','e.g. ABC Plumbing, XYZ Services',false,'Optional — helps us differentiate your content') +
   '</div>';
